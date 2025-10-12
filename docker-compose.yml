@@ -1,0 +1,85 @@
+# Docker Compose for Local Testing
+# Simulates production environment locally
+# For actual production, use AWS ECS + RDS + ElastiCache
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Simulates RDS)
+  postgres:
+    image: postgres:15-alpine
+    container_name: napalmsky-db
+    environment:
+      POSTGRES_USER: napalmsky
+      POSTGRES_PASSWORD: localdev123
+      POSTGRES_DB: napalmsky_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U napalmsky"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache (Simulates ElastiCache/Upstash)
+  redis:
+    image: redis:7-alpine
+    container_name: napalmsky-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Backend API Server
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: napalmsky-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://napalmsky:localdev123@postgres:5432/napalmsky_dev
+      REDIS_URL: redis://redis:6379
+      BCRYPT_ROUNDS: 12
+      # Add other env vars as needed
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server/uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  default:
+    name: napalmsky-network
+
+# Usage:
+# Start: docker-compose up -d
+# Logs: docker-compose logs -f
+# Stop: docker-compose down
+# Clean: docker-compose down -v (removes data!)
+

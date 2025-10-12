@@ -1,0 +1,573 @@
+import express from 'express';
+import Stripe from 'stripe';
+import { store } from './store';
+import { InviteCode } from './types';
+import cryptoRandomString from 'crypto-random-string';
+
+const router = express.Router();
+
+// Initialize Stripe (use test key for development)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
+  apiVersion: '2025-09-30.clover',
+});
+
+const PRICE_AMOUNT = 1; // $0.01 in cents
+
+/**
+ * Middleware to verify session token
+ */
+function requireAuth(req: any, res: any, next: any) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    return res.status(401).json({ error: 'Authorization required' });
+  }
+
+  const session = store.getSession(token);
+  if (!session) {
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
+
+  req.userId = session.userId;
+  next();
+}
+
+/**
+ * Middleware for admin-only routes
+ */
+function requireAdmin(req: any, res: any, next: any) {
+  // For demo: any authenticated user can access
+  // In production: check admin role
+  next();
+}
+
+/**
+ * POST /payment/create-checkout
+ * Create a Stripe checkout session for $1 payment
+ */
+router.post('/create-checkout', requireAuth, async (req: any, res) => {
+  const user = store.getUser(req.userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  // Check if user already paid
+  if (user.paidStatus === 'paid' || user.paidStatus === 'qr_verified') {
+    return res.status(400).json({ error: 'You have already verified access' });
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Napalm Sky Access',
+              description: 'One-time payment for platform access + 4 friend invites',
+            },
+            unit_amount: PRICE_AMOUNT,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: `${req.headers.origin || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin || 'http://localhost:3000'}/onboarding`,
+      client_reference_id: req.userId, // Track which user this payment is for
+      metadata: {
+        userId: req.userId,
+        userName: user.name,
+      },
+    });
+
+    res.json({ 
+      checkoutUrl: session.url,
+      sessionId: session.id,
+    });
+  } catch (error: any) {
+    console.error('[Payment] Failed to create checkout:', error);
+    res.status(500).json({ error: 'Failed to create payment session' });
+  }
+});
+
+/**
+ * POST /payment/webhook
+ * Stripe webhook to handle payment completion
+ * CRITICAL SECURITY: Verify webhook signature
+ */
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req: any, res) => {
+  const sig = req.headers['stripe-signature'];
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    console.error('[Payment] STRIPE_WEBHOOK_SECRET not configured!');
+    return res.status(500).send('Webhook secret not configured');
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    // Verify webhook signature (CRITICAL SECURITY)
+    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+  } catch (err: any) {
+    console.error('[Payment] ⚠️ Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object as Stripe.Checkout.Session;
+      const userId = session.client_reference_id || session.metadata?.userId;
+
+      if (!userId) {
+        console.error('[Payment] No userId in webhook payload');
+        break;
+      }
+
+      console.log(`[Payment] ✅ Payment successful for user ${userId.substring(0, 8)}`);
+
+      // Mark user as paid
+      store.updateUser(userId, {
+        paidStatus: 'paid',
+        paidAt: Date.now(),
+        paymentId: session.payment_intent as string,
+      });
+
+      // Generate user's invite code (4 uses)
+      const inviteCode = generateSecureCode();
+      const user = store.getUser(userId);
+      
+      if (user) {
+        const code: InviteCode = {
+          code: inviteCode,
+          createdBy: userId,
+          createdByName: user.name,
+          createdAt: Date.now(),
+          type: 'user',
+          maxUses: 4,
+          usesRemaining: 4,
+          usedBy: [],
+          isActive: true,
+        };
+
+        store.createInviteCode(code);
+        
+        // Store code on user profile
+        store.updateUser(userId, {
+          myInviteCode: inviteCode,
+          inviteCodeUsesRemaining: 4,
+        });
+
+        console.log(`[Payment] Generated invite code ${inviteCode} for ${user.name} (4 uses)`);
+      }
+
+      break;
+
+    default:
+      console.log(`[Payment] Unhandled event type: ${event.type}`);
+  }
+
+  res.json({ received: true });
+});
+
+/**
+ * POST /payment/apply-code
+ * Apply an invite code to current user (for users on paywall)
+ */
+router.post('/apply-code', requireAuth, async (req: any, res) => {
+  const { inviteCode } = req.body;
+  
+  if (!inviteCode) {
+    return res.status(400).json({ error: 'Invite code is required' });
+  }
+
+  const user = store.getUser(req.userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  // Check if already verified
+  if (user.paidStatus === 'paid' || user.paidStatus === 'qr_verified') {
+    return res.status(400).json({ error: 'You already have access' });
+  }
+
+  // Use the code
+  const result = store.useInviteCode(inviteCode, req.userId, user.name);
+  
+  if (!result.success) {
+    return res.status(403).json({ error: result.error });
+  }
+
+  // Mark user as verified
+  store.updateUser(req.userId, {
+    paidStatus: 'qr_verified',
+    inviteCodeUsed: inviteCode,
+  });
+
+  console.log(`[Payment] User ${user.name} verified via code: ${inviteCode}`);
+
+  res.json({ success: true, paidStatus: 'qr_verified' });
+});
+
+/**
+ * POST /payment/validate-code
+ * Validate an invite code (with rate limiting)
+ * CRITICAL: Rate limit to prevent brute force
+ */
+router.post('/validate-code', async (req: any, res) => {
+  const { code } = req.body;
+  const ip = (req as any).userIp || req.ip || 'unknown';
+
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'Code is required' });
+  }
+
+  // SECURITY: Rate limiting (5 attempts per hour per IP)
+  const rateLimit = store.checkRateLimit(ip);
+  if (!rateLimit.allowed) {
+    const minutesRemaining = Math.ceil((rateLimit.retryAfter || 0) / 1000 / 60);
+    console.warn(`[Security] 🚫 Rate limit exceeded for IP ${ip}`);
+    return res.status(429).json({ 
+      error: 'Too many attempts',
+      message: `Please wait ${minutesRemaining} minutes before trying again`,
+      retryAfter: rateLimit.retryAfter,
+    });
+  }
+
+  // Validate code format (security: prevent injection)
+  const sanitizedCode = code.trim().toUpperCase();
+  if (!/^[A-Z0-9]{16}$/.test(sanitizedCode)) {
+    console.warn(`[Security] Invalid code format attempt from IP ${ip}: ${code}`);
+    return res.status(400).json({ 
+      error: 'Invalid code format',
+      attemptsRemaining: rateLimit.remainingAttempts,
+    });
+  }
+
+  const inviteCode = store.getInviteCode(sanitizedCode);
+
+  if (!inviteCode) {
+    console.warn(`[Security] Code not found from IP ${ip}: ${sanitizedCode}`);
+    return res.status(404).json({ 
+      error: 'Invalid invite code',
+      attemptsRemaining: rateLimit.remainingAttempts,
+    });
+  }
+
+  if (!inviteCode.isActive) {
+    return res.status(403).json({ 
+      error: 'This invite code has been deactivated',
+      attemptsRemaining: rateLimit.remainingAttempts,
+    });
+  }
+
+  if (inviteCode.type === 'user' && inviteCode.usesRemaining <= 0) {
+    return res.status(403).json({ 
+      error: 'This invite code has been fully used',
+      attemptsRemaining: rateLimit.remainingAttempts,
+    });
+  }
+
+  // Code is valid!
+  res.json({ 
+    valid: true, 
+    type: inviteCode.type,
+    usesRemaining: inviteCode.type === 'admin' ? -1 : inviteCode.usesRemaining,
+    createdBy: inviteCode.createdByName,
+  });
+});
+
+/**
+ * GET /payment/status
+ * Check if user has paid or used valid code
+ */
+router.get('/status', requireAuth, (req: any, res) => {
+  const user = store.getUser(req.userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  // If user has their own code, get detailed info
+  let myCodeInfo = null;
+  if (user.myInviteCode) {
+    const codeData = store.getInviteCode(user.myInviteCode);
+    if (codeData) {
+      myCodeInfo = {
+        code: codeData.code,
+        usesRemaining: codeData.usesRemaining,
+        maxUses: codeData.maxUses,
+        totalUsed: codeData.usedBy.length,
+        type: codeData.type,
+      };
+    }
+  }
+
+  res.json({
+    paidStatus: user.paidStatus || 'unpaid',
+    paidAt: user.paidAt,
+    myInviteCode: user.myInviteCode,
+    inviteCodeUsesRemaining: myCodeInfo?.usesRemaining || 0,
+    myCodeInfo, // Full code details
+    inviteCodeUsed: user.inviteCodeUsed, // Which code they used to sign up
+  });
+});
+
+/**
+ * POST /payment/test-bypass
+ * TEST ONLY: Bypass payment and generate invite code (for testing)
+ * REMOVE IN PRODUCTION
+ */
+router.post('/test-bypass', requireAuth, async (req: any, res) => {
+  try {
+    const user = store.getUser(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`[TEST] Bypassing payment for ${user.name}`);
+
+    // Mark as paid
+    store.updateUser(req.userId, {
+      paidStatus: 'paid',
+      paidAt: Date.now(),
+      paymentId: 'test-bypass-' + Date.now(),
+    });
+
+    // Generate 4-use invite code
+    const inviteCode = generateSecureCode();
+    const code: InviteCode = {
+      code: inviteCode,
+      createdBy: req.userId,
+      createdByName: user.name,
+      createdAt: Date.now(),
+      type: 'user',
+      maxUses: 4,
+      usesRemaining: 4,
+      usedBy: [],
+      isActive: true,
+    };
+
+    store.createInviteCode(code);
+    
+    // Store on user profile
+    store.updateUser(req.userId, {
+      myInviteCode: inviteCode,
+      inviteCodeUsesRemaining: 4,
+    });
+
+    console.log(`[TEST] ✅ Generated test invite code ${inviteCode} for ${user.name} (4 uses)`);
+
+    res.json({ success: true, code: inviteCode });
+  } catch (error: any) {
+    console.error('[TEST] Bypass failed:', error);
+    res.status(500).json({ error: 'Bypass failed', message: error.message });
+  }
+});
+
+/**
+ * POST /payment/admin/generate-code-test
+ * TEST ONLY: Generate code without auth (for debugging)
+ * REMOVE IN PRODUCTION
+ */
+router.post('/admin/generate-code-test', async (req: any, res) => {
+  try {
+    const { label } = req.body;
+    
+    console.log('[Admin TEST] Generating test code with label:', label);
+    const code = generateSecureCode();
+    console.log('[Admin TEST] Code generated successfully:', code);
+    
+    const inviteCode: InviteCode = {
+      code,
+      createdBy: 'test-admin',
+      createdByName: label || 'Test Admin',
+      createdAt: Date.now(),
+      type: 'admin',
+      maxUses: -1,
+      usesRemaining: -1,
+      usedBy: [],
+      isActive: true,
+    };
+
+    store.createInviteCode(inviteCode);
+    console.log(`[Admin TEST] ✅ Code created: ${code}`);
+
+    res.json({
+      code,
+      qrCodeUrl: `/payment/qr/${code}`,
+    });
+  } catch (error: any) {
+    console.error('[Admin TEST] ❌ ERROR:', error);
+    console.error('[Admin TEST] Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to generate code',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * POST /payment/admin/generate-code
+ * Admin: Generate a permanent invite code
+ */
+router.post('/admin/generate-code', requireAuth, requireAdmin, async (req: any, res) => {
+  try {
+    const { label } = req.body;
+    const admin = store.getUser(req.userId);
+    
+    if (!admin) {
+      console.error('[Admin] User not found:', req.userId);
+      return res.status(404).json({ error: 'Admin user not found' });
+    }
+
+    console.log('[Admin] Generating code for:', admin.name);
+    const code = generateSecureCode();
+    console.log('[Admin] Code generated successfully:', code);
+    
+    const inviteCode: InviteCode = {
+      code,
+      createdBy: req.userId,
+      createdByName: label || `Admin (${admin.name})`,
+      createdAt: Date.now(),
+      type: 'admin',
+      maxUses: -1, // Unlimited
+      usesRemaining: -1,
+      usedBy: [],
+      isActive: true,
+    };
+
+    store.createInviteCode(inviteCode);
+
+    console.log(`[Admin] ✅ Permanent code created: ${code} by ${admin.name}`);
+
+    res.json({
+      code,
+      qrCodeUrl: `/payment/qr/${code}`,
+    });
+  } catch (error: any) {
+    console.error('[Admin] ❌ FATAL ERROR in generate-code:', error);
+    console.error('[Admin] Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to generate code',
+      message: error.message,
+      details: error.toString(),
+    });
+  }
+});
+
+/**
+ * GET /payment/admin/codes
+ * Admin: List all invite codes
+ */
+router.get('/admin/codes', requireAuth, requireAdmin, (req: any, res) => {
+  const allCodes = Array.from(store['inviteCodes'].values())
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  res.json({
+    codes: allCodes.map(code => ({
+      code: code.code,
+      type: code.type,
+      createdBy: code.createdByName,
+      createdAt: code.createdAt,
+      maxUses: code.maxUses,
+      usesRemaining: code.usesRemaining,
+      totalUsed: code.usedBy.length,
+      isActive: code.isActive,
+    })),
+    total: allCodes.length,
+  });
+});
+
+/**
+ * POST /payment/admin/deactivate-code
+ * Admin: Deactivate a code
+ */
+router.post('/admin/deactivate-code', requireAuth, requireAdmin, (req: any, res) => {
+  const { code } = req.body;
+  
+  if (!code) {
+    return res.status(400).json({ error: 'Code is required' });
+  }
+
+  const success = store.deactivateInviteCode(code);
+  
+  if (!success) {
+    return res.status(404).json({ error: 'Code not found' });
+  }
+
+  res.json({ success: true, message: 'Code deactivated' });
+});
+
+/**
+ * GET /payment/qr/:code
+ * Generate QR code image for a given invite code
+ * PUBLIC endpoint (no auth required)
+ */
+router.get('/qr/:code', async (req: any, res) => {
+  const { code } = req.params;
+
+  // Validate code exists
+  const inviteCode = store.getInviteCode(code);
+  if (!inviteCode) {
+    console.error(`[QR] Code not found: ${code}`);
+    return res.status(404).send('Code not found');
+  }
+
+  try {
+    // Import QRCode dynamically
+    const QRCode = await import('qrcode');
+    
+    // Generate QR code containing the signup URL with code
+    const signupUrl = `${req.protocol}://${req.get('host').replace(':3001', ':3000')}/onboarding?inviteCode=${code}`;
+    console.log(`[QR] Generating QR for URL: ${signupUrl}`);
+    
+    const qrCodeBuffer = await QRCode.toBuffer(signupUrl, {
+      width: 300,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF',
+      },
+      type: 'png',
+    });
+
+    res.writeHead(200, {
+      'Content-Type': 'image/png',
+      'Content-Length': qrCodeBuffer.length,
+      'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+    });
+    res.end(qrCodeBuffer);
+    console.log(`[QR] ✅ Successfully generated QR for code: ${code}`);
+  } catch (error: any) {
+    console.error('[QR] Failed to generate QR code:', error);
+    res.status(500).send('Failed to generate QR code');
+  }
+});
+
+/**
+ * Helper: Generate cryptographically secure invite code
+ * Format: 16 uppercase alphanumeric characters
+ */
+function generateSecureCode(): string {
+  try {
+    // Use crypto-random-string for cryptographic randomness
+    const code = cryptoRandomString({ length: 16, type: 'alphanumeric' }).toUpperCase();
+    
+    // Verify uniqueness (collision check)
+    if (store.getInviteCode(code)) {
+      console.warn('[Security] Code collision detected, regenerating...');
+      return generateSecureCode(); // Recursive retry
+    }
+    
+    console.log('[CodeGen] Generated code:', code);
+    return code;
+  } catch (error) {
+    console.error('[CodeGen] Error generating code:', error);
+    throw error;
+  }
+}
+
+export default router;
+

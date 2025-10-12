@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-base: #0a0a0c;
+    --color-text-ink: #e6e6e9;
+    --color-accent: #ff9b6b;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    @apply bg-[#0a0a0c] text-[#e6e6e9] antialiased;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  html {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+
+  html::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  /* Skip link styles */
+  .skip-link {
+    @apply absolute left-4 top-4 z-[100] -translate-y-20 rounded-md bg-[#ff9b6b] px-4 py-2 text-sm font-medium text-[#0a0a0c] transition-transform focus:translate-y-0;
+  }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff9b6b] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0c];
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gradient color shift animation */
+  @keyframes gradient-shift {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+  }
+}
+

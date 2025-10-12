@@ -1,0 +1,132 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const store_1 = require("./store");
+const router = express_1.default.Router();
+/**
+ * Middleware to verify session token
+ */
+function requireAuth(req, res, next) {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+        return res.status(401).json({ error: 'Authorization required' });
+    }
+    const session = store_1.store.getSession(token);
+    if (!session) {
+        return res.status(401).json({ error: 'Invalid or expired session' });
+    }
+    // Check if user is banned
+    if (store_1.store.isUserBanned(session.userId)) {
+        return res.status(403).json({ error: 'Account suspended', banned: true });
+    }
+    req.userId = session.userId;
+    next();
+}
+/**
+ * GET /turn/credentials
+ * Generate time-limited TURN credentials (1 hour expiry)
+ * SECURITY: Credentials never exposed to client code
+ */
+router.get('/credentials', requireAuth, async (req, res) => {
+    try {
+        const userId = req.userId;
+        console.log(`[TURN] Generating credentials for user ${userId.substring(0, 8)}`);
+        // Option 1: Cloudflare TURN (Recommended - 8x cheaper)
+        if (process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_TURN_KEY) {
+            try {
+                const response = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${process.env.CLOUDFLARE_TURN_KEY}/credentials/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ttl: 3600 // 1 hour expiry
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error(`Cloudflare TURN API error: ${response.status}`);
+                }
+                const turnData = await response.json();
+                return res.json({
+                    iceServers: [
+                        // Free STUN servers (always available)
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        // Cloudflare TURN (secure, time-limited)
+                        ...turnData.iceServers
+                    ],
+                    expiresAt: Date.now() + 3600000, // 1 hour
+                    provider: 'cloudflare'
+                });
+            }
+            catch (cloudflareError) {
+                console.error('[TURN] Cloudflare TURN error:', cloudflareError);
+                // Fall through to Twilio or STUN-only
+            }
+        }
+        // Option 2: Twilio TURN (Fallback)
+        if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+            try {
+                const twilio = require('twilio');
+                const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+                const token = await client.tokens.create({ ttl: 3600 });
+                return res.json({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        ...token.iceServers
+                    ],
+                    expiresAt: Date.now() + 3600000,
+                    provider: 'twilio'
+                });
+            }
+            catch (twilioError) {
+                console.error('[TURN] Twilio TURN error:', twilioError);
+                // Fall through to STUN-only
+            }
+        }
+        // Option 3: STUN-only (Fallback - ~70% success rate)
+        console.warn('[TURN] No TURN server configured, using STUN only (~70% connection success)');
+        return res.json({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ],
+            expiresAt: Date.now() + 3600000,
+            provider: 'stun-only',
+            warning: 'TURN not configured - connection success rate may be lower'
+        });
+    }
+    catch (error) {
+        console.error('[TURN] Failed to generate credentials:', error);
+        // Emergency fallback: STUN-only
+        res.json({
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ],
+            expiresAt: Date.now() + 3600000,
+            provider: 'fallback'
+        });
+    }
+});
+/**
+ * GET /turn/status
+ * Check which TURN provider is configured (for debugging)
+ */
+router.get('/status', requireAuth, (req, res) => {
+    const status = {
+        cloudflare: !!(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_TURN_KEY),
+        twilio: !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN),
+        timestamp: Date.now()
+    };
+    res.json(status);
+});
+exports.default = router;
