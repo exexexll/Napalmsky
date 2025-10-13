@@ -1,15 +1,5 @@
-# Don't copy these to Docker image
 node_modules
-npm-debug.log
-.env
-.env.*
-*.md
-.git
-.gitignore
 dist
-uploads
 *.log
-.DS_Store
-coverage
-.nyc_output
-
+.env
+.env.local
