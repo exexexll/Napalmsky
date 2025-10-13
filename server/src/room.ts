@@ -8,13 +8,13 @@ const router = express.Router();
 /**
  * Middleware to verify session token
  */
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: 'Authorization required' });
   }
 
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
@@ -27,7 +27,7 @@ function requireAuth(req: any, res: any, next: any) {
  * GET /room/history
  * Get user's chat history
  */
-router.get('/history', requireAuth, (req: any, res) => {
+router.get('/history', requireAuth, async (req: any, res) => {
   const history = store.getHistory(req.userId);
   res.json({ history });
 });
@@ -36,8 +36,8 @@ router.get('/history', requireAuth, (req: any, res) => {
  * GET /room/me
  * Get current user info including timer total
  */
-router.get('/me', requireAuth, (req: any, res) => {
-  const user = store.getUser(req.userId);
+router.get('/me', requireAuth, async (req: any, res) => {
+  const user = await store.getUser(req.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -57,7 +57,7 @@ router.get('/me', requireAuth, (req: any, res) => {
  * Get list of online & available users (algorithm-free)
  * PROTECTED: Requires payment or valid invite code
  */
-router.get('/queue', requirePayment, (req: any, res) => {
+router.get('/queue', requirePayment, async (req: any, res) => {
   const onlineUsers = store.getAllOnlineAvailable(req.userId);
   const totalAvailable = onlineUsers.length; // Total before any filtering
   
@@ -66,9 +66,9 @@ router.get('/queue', requirePayment, (req: any, res) => {
   console.log(`[Queue API] Total online & available (excluding self): ${totalAvailable}`);
   console.log(`[Queue API] User IDs: ${onlineUsers.map(uid => uid.substring(0, 8)).join(', ')}`);
   
-  const users = onlineUsers
-    .map(uid => {
-      const user = store.getUser(uid);
+  const users = await Promise.all(
+    onlineUsers.map(async (uid) => {
+      const user = await store.getUser(uid);
       if (!user) {
         console.log(`[Queue API] ⚠️  User ${uid.substring(0, 8)} in presence but not in users store`);
         return null;
@@ -93,7 +93,7 @@ router.get('/queue', requirePayment, (req: any, res) => {
       // Check if this user was introduced to the current user
       const wasIntroducedToMe = user.introducedTo === req.userId;
       const introducedByUser = wasIntroducedToMe && user.introducedBy 
-        ? store.getUser(user.introducedBy) 
+        ? await store.getUser(user.introducedBy) 
         : null;
 
       return {
@@ -108,13 +108,15 @@ router.get('/queue', requirePayment, (req: any, res) => {
         introducedBy: introducedByUser?.name || null,
       };
     })
-    .filter(Boolean);
+  );
+  
+  const filteredUsers = users.filter(Boolean);
 
-  console.log(`[Queue API] Final result: ${users.length} users (${users.filter((u: any) => u.hasCooldown).length} with cooldown)`);
-  console.log(`[Queue API] Returning: ${users.map((u: any) => `${u.name}${u.hasCooldown ? ' [COOLDOWN]' : ''}`).join(', ')}`);
+  console.log(`[Queue API] Final result: ${filteredUsers.length} users (${filteredUsers.filter((u: any) => u.hasCooldown).length} with cooldown)`);
+  console.log(`[Queue API] Returning: ${filteredUsers.map((u: any) => `${u.name}${u.hasCooldown ? ' [COOLDOWN]' : ''}`).join(', ')}`);
   console.log(`[Queue API] Total available count: ${totalAvailable}`);
   console.log(`[Queue API] ========================================`);
-  res.json({ users, totalAvailable });
+  res.json({ users: filteredUsers, totalAvailable });
 });
 
 /**
@@ -122,7 +124,7 @@ router.get('/queue', requirePayment, (req: any, res) => {
  * Random batch of online users (uniform shuffle, no algorithm)
  * PROTECTED: Requires payment or valid invite code
  */
-router.get('/reel', requirePayment, (req: any, res) => {
+router.get('/reel', requirePayment, async (req: any, res) => {
   const limit = parseInt(req.query.limit as string) || 20;
   const cursor = req.query.cursor as string || uuidv4();
 
@@ -150,20 +152,21 @@ router.get('/reel', requirePayment, (req: any, res) => {
   batch.forEach(uid => store.addSeen(cursor, uid));
 
   // Map to user data
-  const items = batch
-    .map(uid => {
-      const user = store.getUser(uid);
-      if (!user) return null;
+  const userPromises = batch.map(async (uid) => {
+    const user = await store.getUser(uid);
+    if (!user) return null;
 
-      return {
-        userId: user.userId,
-        name: user.name,
-        gender: user.gender,
-        selfieUrl: user.selfieUrl,
-        videoUrl: user.videoUrl,
-      };
-    })
-    .filter(Boolean);
+    return {
+      userId: user.userId,
+      name: user.name,
+      gender: user.gender,
+      selfieUrl: user.selfieUrl,
+      videoUrl: user.videoUrl,
+    };
+  });
+  
+  const allItems = await Promise.all(userPromises);
+  const items = allItems.filter(Boolean);
 
   res.json({
     items,
