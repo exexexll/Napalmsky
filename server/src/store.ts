@@ -298,12 +298,12 @@ class DataStore {
   }
 
   // Timer operations (legacy - now using user.timerTotalSeconds)
-  addToTimer(userId: string, seconds: number): void {
+  async addToTimer(userId: string, seconds: number): Promise<void> {
     const current = this.timerTotals.get(userId) || 0;
     this.timerTotals.set(userId, current + seconds);
     
     // Also update user metrics
-    const user = this.getUser(userId);
+    const user = await this.getUser(userId);
     if (user) {
       const timerTotal = (user.timerTotalSeconds || 0) + seconds;
       const sessionCount = (user.sessionCount || 0) + 1;
@@ -315,7 +315,7 @@ class DataStore {
         lastSessions.shift();
       }
 
-      this.updateUser(userId, {
+      await this.updateUser(userId, {
         timerTotalSeconds: timerTotal,
         sessionCount,
         lastSessions,
