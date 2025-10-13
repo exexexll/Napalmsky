@@ -33,13 +33,13 @@ function generateUniqueReferralCode(maxAttempts: number = 10): string | null {
 /**
  * Middleware to verify session token
  */
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: 'Authorization required' });
   }
 
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
@@ -53,19 +53,19 @@ function requireAuth(req: any, res: any, next: any) {
  * Generate a referral link to introduce a friend to a SPECIFIC user
  * This is a "matchmaker" feature - not a platform growth feature
  */
-router.post('/generate', requireAuth, (req: any, res) => {
+router.post('/generate', requireAuth, async (req: any, res) => {
   const { targetUserId } = req.body; // The person you want to introduce your friend to
   
   if (!targetUserId) {
     return res.status(400).json({ error: 'targetUserId is required' });
   }
 
-  const targetUser = store.getUser(targetUserId);
+  const targetUser = await store.getUser(targetUserId);
   if (!targetUser) {
     return res.status(404).json({ error: 'Target user not found' });
   }
 
-  const creatorUser = store.getUser(req.userId);
+  const creatorUser = await store.getUser(req.userId);
   if (!creatorUser) {
     return res.status(404).json({ error: 'User not found' });
   }
