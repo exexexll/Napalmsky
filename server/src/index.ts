@@ -1,3 +1,6 @@
+// Load environment variables FIRST before any other imports
+import 'dotenv/config';
+
 import express from 'express';
 import http from 'http';
 import { Server as SocketServer } from 'socket.io';

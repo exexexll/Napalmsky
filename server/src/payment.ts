@@ -11,7 +11,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2025-09-30.clover',
 });
 
-const PRICE_AMOUNT = 1; // $0.01 in cents
+const PRICE_AMOUNT = 50; // $0.50 in cents (Stripe minimum for checkout)
 
 /**
  * Middleware to verify session token

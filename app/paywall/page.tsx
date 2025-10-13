@@ -176,7 +176,7 @@ function PaywallPageContent() {
                 Welcome to Napalm Sky
               </h1>
               <p className="text-[#eaeaf0]/60">
-                One-time $0.01 payment • Keeps bots out
+                One-time $0.50 payment • Keeps bots out
               </p>
             </div>
 
@@ -204,7 +204,7 @@ function PaywallPageContent() {
               disabled={loading}
               className="focus-ring w-full rounded-xl bg-[#ff9b6b] px-6 py-4 font-semibold text-[#0a0a0c] transition-all hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? 'Processing...' : 'Pay $0.01 & Continue'}
+              {loading ? 'Processing...' : 'Pay $0.50 & Continue'}
             </button>
 
             {error && (
