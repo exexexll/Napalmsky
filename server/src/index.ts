@@ -37,7 +37,7 @@ const io = new SocketServer(server, {
 // Socket.io Authentication Middleware
 // Authenticate connections BEFORE accepting them (security improvement)
 // For backward compatibility, this is optional - full auth happens in 'auth' event
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
   
   if (!token) {
@@ -734,8 +734,8 @@ io.on('connection', (socket) => {
           store.addHistory(room.user2, history2);
 
           // Update timer totals and metrics (use actual duration)
-          store.addToTimer(room.user1, actualDuration);
-          store.addToTimer(room.user2, actualDuration);
+          await store.addToTimer(room.user1, actualDuration);
+          await store.addToTimer(room.user2, actualDuration);
           
           console.log(`[Call] Saved ${actualDuration}s call to history for both users`);
         } else {
@@ -796,7 +796,7 @@ io.on('connection', (socket) => {
       activeSockets.delete(currentUserId);
       
       // Find any active room and clean up properly
-      Array.from(activeRooms.entries()).forEach(([roomId, room]) => {
+      for (const [roomId, room] of activeRooms.entries()) {
         if (room.user1 === currentUserId || room.user2 === currentUserId) {
           const partnerId = room.user1 === currentUserId ? room.user2 : room.user1;
           const partnerUser = await store.getUser(partnerId);
@@ -848,8 +848,8 @@ io.on('connection', (socket) => {
               store.addHistory(room.user2, history2);
               
               // Update timer totals
-              store.addToTimer(room.user1, actualDuration);
-              store.addToTimer(room.user2, actualDuration);
+              await store.addToTimer(room.user1, actualDuration);
+              await store.addToTimer(room.user2, actualDuration);
               
               // Set cooldown even for disconnected calls (prevent abuse)
               const cooldownUntil = Date.now() + (24 * 60 * 60 * 1000);
@@ -874,7 +874,7 @@ io.on('connection', (socket) => {
           
           console.log(`[Disconnect] ✅ Cleaned up room ${roomId} and marked users available`);
         }
-      });
+      }
       
       // Mark user offline (they disconnected from socket)
       store.updatePresence(currentUserId, { 
