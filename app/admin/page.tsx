@@ -58,13 +58,34 @@ export default function AdminPage() {
   const [qrLabel, setQrLabel] = useState('');
 
   useEffect(() => {
-    const session = getSession();
-    if (!session) {
-      router.push('/onboarding');
+    // Check for admin authentication
+    const adminToken = localStorage.getItem('napalmsky_admin_token');
+    
+    if (!adminToken) {
+      // No admin token, redirect to admin login
+      router.push('/admin-login');
       return;
     }
 
-    loadData();
+    // Verify admin token is valid
+    fetch(`${API_BASE}/admin/verify`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` },
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Invalid admin session');
+        }
+        return res.json();
+      })
+      .then(() => {
+        // Admin authenticated, load data
+        loadData();
+      })
+      .catch(() => {
+        // Invalid token, redirect to login
+        localStorage.removeItem('napalmsky_admin_token');
+        router.push('/admin-login');
+      });
   }, [router]);
 
   const loadData = async () => {

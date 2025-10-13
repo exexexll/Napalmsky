@@ -17,6 +17,7 @@ import referralRoutes from './referral';
 import reportRoutes from './report';
 import paymentRoutes from './payment';
 import turnRoutes from './turn';
+import adminAuthRoutes from './admin-auth';
 import { authLimiter, apiLimiter, turnLimiter, paymentLimiter, reportLimiter } from './rate-limit';
 import { securityHeaders, httpsRedirect } from './security-headers';
 
@@ -151,6 +152,7 @@ app.use('/referral', apiLimiter, referralRoutes);
 app.use('/report', reportLimiter, reportRoutes);
 app.use('/payment', paymentLimiter, paymentRoutes);
 app.use('/turn', turnLimiter, turnRoutes);
+app.use('/admin', authLimiter, adminAuthRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
