@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "concurrently \"next dev\" \"npm run server:dev\"",
     "server:dev": "cd server && npm run dev",
-    "build": "next build && cd server && npm run build",
+    "build": "next build",
+    "build:all": "next build && cd server && npm run build",
     "start": "next start",
     "lint": "next lint"
   },
