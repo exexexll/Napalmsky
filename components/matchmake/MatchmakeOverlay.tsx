@@ -25,14 +25,10 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
   const [inviteStatuses, setInviteStatuses] = useState<Record<string, 'idle' | 'waiting' | 'declined' | 'timeout' | 'cooldown'>>({});
   const [incomingInvite, setIncomingInvite] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'info' } | null>(null);
-  const [testMode, setTestMode] = useState(false); // Toggle to bypass 24h cooldown for testing
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [showDebug, setShowDebug] = useState(false);
   const [totalAvailable, setTotalAvailable] = useState(0); // Total available count (before reported user filter)
   const [autoInviteSent, setAutoInviteSent] = useState(false);
   
   const socketRef = useRef<any>(null);
-  const testModeRef = useRef(testMode);
 
   // Load initial queue (no shuffling, consistent order)
   const loadInitialQueue = useCallback(async () => {
@@ -41,10 +37,9 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
 
     setLoading(true);
     try {
-      const currentTestMode = testModeRef.current;
-      console.log('[Matchmake] Fetching initial queue with testMode:', currentTestMode);
-      const queueData = await getQueue(session.sessionToken, currentTestMode);
-      console.log('[Matchmake] ✅ Received from API:', queueData.users.length, 'users shown,', queueData.totalAvailable, 'total available', currentTestMode ? '(TEST MODE)' : '(PRODUCTION MODE)');
+      console.log('[Matchmake] Fetching initial queue');
+      const queueData = await getQueue(session.sessionToken);
+      console.log('[Matchmake] ✅ Received from API:', queueData.users.length, 'users shown,', queueData.totalAvailable, 'total available');
       
       // Extra safety: Filter out current user from client side too
       let filteredUsers = queueData.users.filter(u => u.userId !== session.userId);
