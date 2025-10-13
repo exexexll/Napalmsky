@@ -6,18 +6,18 @@
 
 import { store } from './store';
 
-export function requirePayment(req: any, res: any, next: any) {
+export async function requirePayment(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: 'Authorization required' });
   }
 
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
 
-  const user = store.getUser(session.userId);
+  const user = await store.getUser(session.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }

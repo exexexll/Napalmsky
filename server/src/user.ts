@@ -6,13 +6,13 @@ const router = express.Router();
 /**
  * Middleware to verify session token
  */
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: 'Authorization required' });
   }
 
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
@@ -25,8 +25,8 @@ function requireAuth(req: any, res: any, next: any) {
  * GET /user/me
  * Get current user profile with metrics
  */
-router.get('/me', requireAuth, (req: any, res) => {
-  const user = store.getUser(req.userId);
+router.get('/me', requireAuth, async (req: any, res) => {
+  const user = await store.getUser(req.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -53,16 +53,16 @@ router.get('/me', requireAuth, (req: any, res) => {
  * Update user profile (partial updates)
  * Supports: socials object
  */
-router.put('/me', requireAuth, (req: any, res) => {
+router.put('/me', requireAuth, async (req: any, res) => {
   const { socials } = req.body;
 
   if (socials) {
     // Store socials in user object
     // In production: validate and sanitize
-    store.updateUser(req.userId, { socials });
+    await store.updateUser(req.userId, { socials });
   }
 
-  const user = store.getUser(req.userId);
+  const user = await store.getUser(req.userId);
 
   res.json({
     success: true,

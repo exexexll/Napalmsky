@@ -6,13 +6,13 @@ const router = express.Router();
 /**
  * Middleware to verify session token
  */
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: 'Authorization required' });
   }
 
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
