@@ -65,7 +65,7 @@ export async function getQueue(sessionToken: string): Promise<QueueResponse> {
   }
 
   const data = await res.json();
-  console.log('[API] Queue loaded:', data.users.length, 'users shown,', data.totalAvailable, 'total available', testMode ? '(TEST MODE - no cooldown filter)' : '');
+  console.log('[API] Queue loaded:', data.users.length, 'users shown,', data.totalAvailable, 'total available');
   return data;
 }
 

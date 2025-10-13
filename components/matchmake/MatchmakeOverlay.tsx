@@ -102,23 +102,6 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Fetch debug info
-  const fetchDebugInfo = async () => {
-    const session = getSession();
-    if (!session) return;
-
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/room/debug/presence`, {
-        headers: { 'Authorization': `Bearer ${session.sessionToken}` },
-      });
-      const data = await res.json();
-      setDebugInfo(data);
-      setShowDebug(true);
-      console.log('[Debug] Server presence state:', data);
-    } catch (err) {
-      console.error('[Debug] Failed to fetch:', err);
-    }
-  };
 
   // Check for new users and update existing user data (cooldown, intro status)
   const checkForNewUsers = useCallback(async () => {
@@ -126,13 +109,12 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     if (!session) return;
 
     try {
-      const currentTestMode = testModeRef.current;
-      const queueData = await getQueue(session.sessionToken, currentTestMode);
+      const queueData = await getQueue(session.sessionToken);
       
       // Filter out self (extra safety)
       const filteredQueue = queueData.users.filter(u => u.userId !== session.userId);
       
-      console.log('[Matchmake] Queue check - Total in queue:', filteredQueue.length, 'users shown,', queueData.totalAvailable, 'total available', currentTestMode ? '(TEST MODE)' : '');
+      console.log('[Matchmake] Queue check - Total in queue:', filteredQueue.length, 'users shown,', queueData.totalAvailable, 'total available');
       console.log('[Matchmake] Users in queue:', filteredQueue.map(u => `${u.name} (${u.userId.substring(0, 8)})`));
       
       // Update total available count
@@ -355,11 +337,6 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, router]);
 
-  // Update testModeRef when testMode changes
-  useEffect(() => {
-    testModeRef.current = testMode;
-  }, [testMode]);
-
   // Debug: Log users array whenever it changes and adjust index if needed
   useEffect(() => {
     console.log('[Matchmake] 🔍 Users array changed - now has:', users.length, 'users');
@@ -374,39 +351,6 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
       setCurrentIndex(0);
     }
   }, [users, currentIndex]);
-
-  // Reload when test mode changes
-  useEffect(() => {
-    if (isOpen && testMode) { // Only when turning ON
-      console.log('[Matchmake] Test mode turned ON - reloading queue to bypass cooldowns...');
-      const session = getSession();
-      if (session) {
-        getQueue(session.sessionToken, true)
-          .then(queueData => {
-            const filteredUsers = queueData.users.filter(u => u.userId !== session.userId);
-            console.log('[Matchmake] Test mode queue loaded:', filteredUsers.length, 'users');
-            setUsers(filteredUsers);
-            setTotalAvailable(queueData.totalAvailable);
-            setCurrentIndex(0);
-          })
-          .catch(err => console.error('[Matchmake] Test mode load failed:', err));
-      }
-    } else if (isOpen && !testMode && testModeRef.current) { // When turning OFF
-      console.log('[Matchmake] Test mode turned OFF - reloading queue with cooldown filter...');
-      const session = getSession();
-      if (session) {
-        getQueue(session.sessionToken, false)
-          .then(queueData => {
-            const filteredUsers = queueData.users.filter(u => u.userId !== session.userId);
-            console.log('[Matchmake] Production queue loaded:', filteredUsers.length, 'users');
-            setUsers(filteredUsers);
-            setTotalAvailable(queueData.totalAvailable);
-            setCurrentIndex(0);
-          })
-          .catch(err => console.error('[Matchmake] Production load failed:', err));
-      }
-    }
-  }, [testMode, isOpen]);
 
   // Navigate cards (TikTok-style)
   const goToNext = () => {
@@ -591,25 +535,6 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
             <p className="text-xs text-white/90 drop-shadow">
               {totalAvailable} {totalAvailable === 1 ? 'person' : 'people'} online
             </p>
-            <div className="flex flex-col gap-1">
-              <button
-                onClick={() => {
-                  const newTestMode = !testMode;
-                  setTestMode(newTestMode);
-                  testModeRef.current = newTestMode;
-                  showToast(newTestMode ? 'Test mode ON (cooldown bypass) - Reloading...' : 'Test mode OFF (24h cooldown active) - Reloading...', 'info');
-                }}
-                className="text-xs text-blue-300 hover:text-blue-200 underline"
-              >
-                {testMode ? '🧪 Test Mode: ON' : '🔒 Test Mode: OFF'}
-              </button>
-              <button
-                onClick={fetchDebugInfo}
-                className="text-xs text-green-300 hover:text-green-200 underline"
-              >
-                🔍 Debug Queue
-              </button>
-            </div>
           </div>
           <button
             onClick={handleClose}
@@ -751,124 +676,6 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
         )}
       </AnimatePresence>
 
-      {/* Debug Panel */}
-      <AnimatePresence>
-        {showDebug && debugInfo && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4"
-            onClick={() => setShowDebug(false)}
-          >
-            <div 
-              className="max-w-2xl w-full max-h-[80vh] overflow-auto rounded-2xl bg-[#0a0a0c] p-6 border-2 border-green-500/30"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-playfair text-2xl font-bold text-green-300">
-                  🔍 Server Queue Debug
-                </h3>
-                <button
-                  onClick={() => setShowDebug(false)}
-                  className="text-white/70 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-              
-              <div className="space-y-4 text-sm">
-                <div className="grid grid-cols-4 gap-3 p-4 rounded-xl bg-white/5">
-                  <div>
-                    <div className="text-white/50 text-xs">Total</div>
-                    <div className="text-2xl font-bold text-white">{debugInfo.totalUsers}</div>
-                  </div>
-                  <div>
-                    <div className="text-white/50 text-xs">Online</div>
-                    <div className="text-2xl font-bold text-green-400">{debugInfo.onlineUsers}</div>
-                  </div>
-                  <div>
-                    <div className="text-white/50 text-xs">Available</div>
-                    <div className="text-2xl font-bold text-blue-400">{debugInfo.availableUsers}</div>
-                  </div>
-                  <div>
-                    <div className="text-white/50 text-xs">Can Match</div>
-                    <div className="text-2xl font-bold text-yellow-400">{debugInfo.canActuallyMatch !== undefined ? debugInfo.canActuallyMatch : (debugInfo.availableOthers || debugInfo.availableUsers - 1)}</div>
-                  </div>
-                </div>
-                
-                <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
-                  <p className="text-xs text-yellow-300">
-                    <strong>Your reel should show: {debugInfo.canActuallyMatch !== undefined ? debugInfo.canActuallyMatch : 'calculating...'} users</strong>
-                    <br/>
-                    (Available users excluding yourself, cooldowns OK, reported users excluded)
-                    <br/>
-                    <br/>
-                    <strong>Your reel actually shows: {users.length} users</strong>
-                    {debugInfo.canActuallyMatch !== undefined && users.length !== debugInfo.canActuallyMatch && (
-                      <span className="block mt-1 text-red-400">
-                        ⚠️ MISMATCH! Expected {debugInfo.canActuallyMatch} but showing {users.length}
-                      </span>
-                    )}
-                    {debugInfo.canActuallyMatch !== undefined && users.length === debugInfo.canActuallyMatch && (
-                      <span className="block mt-1 text-green-400">
-                        ✅ MATCH! Queue is synced correctly
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="font-bold text-white">User Details:</div>
-                  {debugInfo.users.map((u: any) => (
-                    <div
-                      key={u.userId}
-                      className={`p-3 rounded-lg ${
-                        u.isSelf
-                          ? 'bg-purple-500/20 border-2 border-purple-500/50'
-                          : u.isReported
-                          ? 'bg-red-500/20 border-2 border-red-500/50'
-                          : u.hasCooldown
-                          ? 'bg-orange-500/20 border border-orange-500/30'
-                          : u.online && u.available 
-                          ? 'bg-green-500/20 border border-green-500/30'
-                          : u.online
-                          ? 'bg-yellow-500/20 border border-yellow-500/30'
-                          : 'bg-gray-500/20 border border-gray-500/30'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-bold text-white">{u.name}</span>
-                          <span className="text-white/50 ml-2">({u.userId})</span>
-                          {u.isSelf && <span className="ml-2 text-xs text-purple-300">← YOU</span>}
-                          {u.isReported && <span className="ml-2 text-xs text-red-300">🚫 REPORTED</span>}
-                          {u.hasCooldown && <span className="ml-2 text-xs text-orange-300">⏰ COOLDOWN</span>}
-                        </div>
-                        <div className="flex gap-2 text-xs">
-                          <span className={u.online ? 'text-green-400' : 'text-red-400'}>
-                            {u.online ? '🟢 Online' : '🔴 Offline'}
-                          </span>
-                          <span className={u.available ? 'text-blue-400' : 'text-gray-400'}>
-                            {u.available ? '✅ Available' : '⏸️ Busy'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={fetchDebugInfo}
-                  className="w-full mt-4 rounded-xl bg-green-500/20 px-4 py-2 text-sm text-green-300 hover:bg-green-500/30"
-                >
-                  🔄 Refresh Debug Info
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </>
   );
 }

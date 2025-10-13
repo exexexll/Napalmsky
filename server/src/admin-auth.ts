@@ -135,11 +135,11 @@ router.get('/verify', (req, res) => {
 // Clean up expired sessions every hour
 setInterval(() => {
   const now = Date.now();
-  for (const [token, session] of adminSessions.entries()) {
+  Array.from(adminSessions.entries()).forEach(([token, session]) => {
     if (now - session.createdAt > ADMIN_SESSION_EXPIRY) {
       adminSessions.delete(token);
     }
-  }
+  });
 }, 60 * 60 * 1000);
 
 export default router;
