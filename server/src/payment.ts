@@ -201,7 +201,7 @@ router.post('/apply-code', requireAuth, async (req: any, res) => {
   }
 
   // Mark user as verified
-  store.updateUser(req.userId, {
+  await store.updateUser(req.userId, {
     paidStatus: 'qr_verified',
     inviteCodeUsed: inviteCode,
   });
@@ -283,7 +283,7 @@ router.post('/validate-code', async (req: any, res) => {
  * GET /payment/status
  * Check if user has paid or used valid code
  */
-router.get('/status', requireAuth, (req: any, res) => {
+router.get('/status', requireAuth, async (req: any, res) => {
   const user = await store.getUser(req.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
@@ -292,7 +292,7 @@ router.get('/status', requireAuth, (req: any, res) => {
   // If user has their own code, get detailed info
   let myCodeInfo = null;
   if (user.myInviteCode) {
-    const codeData = store.getInviteCode(user.myInviteCode);
+    const codeData = await store.getInviteCode(user.myInviteCode);
     if (codeData) {
       myCodeInfo = {
         code: codeData.code,
@@ -321,7 +321,7 @@ router.get('/status', requireAuth, (req: any, res) => {
 router.post('/admin/generate-code', requireAuth, requireAdmin, async (req: any, res) => {
   try {
     const { label } = req.body;
-    const admin = store.getUser(req.userId);
+    const admin = await store.getUser(req.userId);
     
     if (!admin) {
       console.error('[Admin] User not found:', req.userId);
@@ -344,7 +344,7 @@ router.post('/admin/generate-code', requireAuth, requireAdmin, async (req: any, 
       isActive: true,
     };
 
-    store.createInviteCode(inviteCode);
+    await store.createInviteCode(inviteCode);
 
     console.log(`[Admin] ✅ Permanent code created: ${code} by ${admin.name}`);
 

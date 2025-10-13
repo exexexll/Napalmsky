@@ -653,15 +653,65 @@ class DataStore {
 
   // ===== Invite Code System =====
 
-  // Create an invite code
-  createInviteCode(inviteCode: InviteCode): void {
+  // Create an invite code - with PostgreSQL support
+  async createInviteCode(inviteCode: InviteCode): Promise<void> {
     this.inviteCodes.set(inviteCode.code, inviteCode);
     console.log(`[InviteCode] Created ${inviteCode.type} code: ${inviteCode.code} (${inviteCode.maxUses === -1 ? 'unlimited' : inviteCode.maxUses} uses)`);
+    
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO invite_codes (code, created_by, created_by_name, created_at, type, max_uses, uses_remaining, used_by, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            inviteCode.code,
+            inviteCode.createdBy,
+            inviteCode.createdByName,
+            new Date(inviteCode.createdAt),
+            inviteCode.type,
+            inviteCode.maxUses,
+            inviteCode.usesRemaining,
+            JSON.stringify(inviteCode.usedBy),
+            inviteCode.isActive
+          ]
+        );
+      } catch (error) {
+        console.error('[Store] Failed to create invite code in database:', error);
+      }
+    }
   }
 
-  // Get invite code
-  getInviteCode(code: string): InviteCode | undefined {
-    return this.inviteCodes.get(code);
+  // Get invite code - with PostgreSQL support
+  async getInviteCode(code: string): Promise<InviteCode | undefined> {
+    // Check memory first
+    let inviteCode = this.inviteCodes.get(code);
+    
+    // If not in memory and database available, check there
+    if (!inviteCode && this.useDatabase) {
+      try {
+        const result = await query('SELECT * FROM invite_codes WHERE code = $1', [code]);
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          inviteCode = {
+            code: row.code,
+            createdBy: row.created_by,
+            createdByName: row.created_by_name,
+            createdAt: new Date(row.created_at).getTime(),
+            type: row.type,
+            maxUses: row.max_uses,
+            usesRemaining: row.uses_remaining,
+            usedBy: row.used_by || [],
+            isActive: row.is_active,
+          };
+          // Cache in memory
+          this.inviteCodes.set(code, inviteCode);
+        }
+      } catch (error) {
+        console.error('[Store] Failed to get invite code from database:', error);
+      }
+    }
+    
+    return inviteCode;
   }
 
   // Validate and use an invite code
