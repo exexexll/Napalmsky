@@ -39,11 +39,18 @@ export default function BanNotification() {
           setBanRecord(result.banRecord);
         }
       } catch (error: any) {
-        console.error('[Ban] Failed to check ban status:', error);
-        
-        // If we get a 403 (banned), the user is definitely banned
-        if (error.message?.includes('suspended') || error.message?.includes('banned')) {
+        // Handle different error cases
+        if (error.message?.includes('Invalid or expired session')) {
+          // Session expired - clear it and let user re-login
+          console.log('[Ban] Session expired, clearing...');
+          localStorage.removeItem('napalmsky_session');
+          // Don't show error - user will be redirected to onboarding
+        } else if (error.message?.includes('suspended') || error.message?.includes('banned')) {
+          // User is actually banned
           setIsBanned(true);
+        } else {
+          // Other error - log but don't show to user
+          console.warn('[Ban] Could not verify ban status:', error.message);
         }
       } finally {
         setChecking(false);

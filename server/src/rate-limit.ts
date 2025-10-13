@@ -79,12 +79,12 @@ export const turnLimiter = rateLimit({
 });
 
 /**
- * Payment endpoints: 20 requests per hour per IP
- * Prevents payment spam and code validation attacks
+ * Payment endpoints: 100 requests per hour per IP
+ * Allows admin code generation while preventing abuse
  */
 export const paymentLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // 20 requests per hour per IP
+  max: 100, // 100 requests per hour per IP (higher for admin operations)
   message: {
     error: 'Too many payment requests',
     message: 'Please wait before trying again',
@@ -92,6 +92,10 @@ export const paymentLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting in development
+    return process.env.NODE_ENV === 'development';
+  },
   handler: (req, res) => {
     console.warn(`[RateLimit] Payment limit exceeded for IP ${req.ip}`);
     res.status(429).json({
@@ -102,12 +106,13 @@ export const paymentLimiter = rateLimit({
 });
 
 /**
- * Report endpoints: 10 reports per hour per IP
- * Prevents report spam
+ * Report endpoints: 50 requests per hour per IP
+ * Allows admin operations while preventing spam
+ * (Admin panel makes multiple report API calls)
  */
 export const reportLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // 10 reports per hour per IP
+  max: 50, // 50 requests per hour per IP (higher for admin operations)
   message: {
     error: 'Too many reports',
     message: 'Please wait before submitting another report',
@@ -115,6 +120,10 @@ export const reportLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting in development
+    return process.env.NODE_ENV === 'development';
+  },
   handler: (req, res) => {
     console.warn(`[RateLimit] Report limit exceeded for IP ${req.ip}`);
     res.status(429).json({
