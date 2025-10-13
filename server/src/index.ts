@@ -154,6 +154,30 @@ app.use('/payment', paymentLimiter, paymentRoutes);
 app.use('/turn', turnLimiter, turnRoutes);
 app.use('/admin', authLimiter, adminAuthRoutes);
 
+// Root endpoint - API information
+app.get('/', (req, res) => {
+  res.json({
+    name: 'Napalm Sky API',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: Date.now(),
+    environment: process.env.NODE_ENV || 'development',
+    endpoints: {
+      health: '/health',
+      auth: '/auth/*',
+      user: '/user/*',
+      matchmaking: '/room/queue',
+      payment: '/payment/*',
+      admin: '/admin/*',
+    },
+    databases: {
+      postgresql: process.env.DATABASE_URL ? 'connected' : 'not configured',
+      redis: process.env.REDIS_URL ? 'connected' : 'not configured',
+    },
+    message: 'Napalm Sky Backend API - For frontend integration only'
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
