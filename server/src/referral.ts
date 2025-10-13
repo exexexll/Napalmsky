@@ -144,7 +144,7 @@ router.put('/notifications/:id/read', requireAuth, (req: any, res) => {
  * GET /referral/target-status/:code
  * Check if the target user (from referral code) is online
  */
-router.get('/target-status/:code', (req: any, res) => {
+router.get('/target-status/:code', async (req: any, res) => {
   const { code } = req.params;
   
   const referralInfo = store.getReferralMapping(code);
@@ -152,7 +152,7 @@ router.get('/target-status/:code', (req: any, res) => {
     return res.status(404).json({ error: 'Invalid referral code' });
   }
 
-  const targetUser = store.getUser(referralInfo.targetUserId);
+  const targetUser = await store.getUser(referralInfo.targetUserId);
   if (!targetUser) {
     return res.status(404).json({ error: 'Target user not found' });
   }
@@ -177,7 +177,7 @@ router.get('/target-status/:code', (req: any, res) => {
  * POST /referral/direct-match
  * Direct match with target user using referral code
  */
-router.post('/direct-match', requireAuth, (req: any, res) => {
+router.post('/direct-match', requireAuth, async (req: any, res) => {
   const { referralCode } = req.body;
   
   if (!referralCode) {
@@ -189,7 +189,7 @@ router.post('/direct-match', requireAuth, (req: any, res) => {
     return res.status(404).json({ error: 'Invalid referral code' });
   }
 
-  const targetUser = store.getUser(referralInfo.targetUserId);
+  const targetUser = await store.getUser(referralInfo.targetUserId);
   if (!targetUser) {
     return res.status(404).json({ error: 'Target user not found' });
   }
@@ -199,7 +199,7 @@ router.post('/direct-match', requireAuth, (req: any, res) => {
   const isAvailable = !!(presence && presence.online && presence.available);
 
   // Check if current user was introduced to this target
-  const currentUser = store.getUser(req.userId);
+  const currentUser = await store.getUser(req.userId);
   const wasIntroduced = currentUser?.introducedTo === referralInfo.targetUserId;
 
   res.json({
@@ -223,26 +223,28 @@ router.post('/direct-match', requireAuth, (req: any, res) => {
  * GET /referral/my-introductions
  * Get list of users who were introduced to me
  */
-router.get('/my-introductions', requireAuth, (req: any, res) => {
+router.get('/my-introductions', requireAuth, async (req: any, res) => {
   const notifications = store.getReferralNotifications(req.userId);
   
   // Get full user details for each introduction
-  const introductions = notifications.map(notif => {
-    const user = store.getUser(notif.referredUserId);
-    const presence = store.getPresence(notif.referredUserId);
-    
-    return {
-      userId: notif.referredUserId,
-      name: notif.referredName,
-      introducedBy: notif.introducedByName,
-      timestamp: notif.timestamp,
-      isOnline: !!(presence && presence.online),
-      isAvailable: !!(presence && presence.online && presence.available),
-      selfieUrl: user?.selfieUrl,
-      videoUrl: user?.videoUrl,
-      gender: user?.gender,
-    };
-  });
+  const introductions = await Promise.all(
+    notifications.map(async (notif) => {
+      const user = await store.getUser(notif.referredUserId);
+      const presence = store.getPresence(notif.referredUserId);
+      
+      return {
+        userId: notif.referredUserId,
+        name: notif.referredName,
+        introducedBy: notif.introducedByName,
+        timestamp: notif.timestamp,
+        isOnline: !!(presence && presence.online),
+        isAvailable: !!(presence && presence.online && presence.available),
+        selfieUrl: user?.selfieUrl,
+        videoUrl: user?.videoUrl,
+        gender: user?.gender,
+      };
+    })
+  );
 
   res.json({
     introductions,
