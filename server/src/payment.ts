@@ -136,7 +136,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
       });
 
       // Generate user's invite code (4 uses)
-      const inviteCode = generateSecureCode();
+      const inviteCode = await generateSecureCode();
       const user = await store.getUser(userId);
       
       if (user) {
@@ -246,7 +246,7 @@ router.post('/validate-code', async (req: any, res) => {
     });
   }
 
-  const inviteCode = store.getInviteCode(sanitizedCode);
+  const inviteCode = await store.getInviteCode(sanitizedCode);
 
   if (!inviteCode) {
     console.warn(`[Security] Code not found from IP ${ip}: ${sanitizedCode}`);
@@ -329,7 +329,7 @@ router.post('/admin/generate-code', requireAuth, requireAdmin, async (req: any, 
     }
 
     console.log('[Admin] Generating code for:', admin.name);
-    const code = generateSecureCode();
+    const code = await generateSecureCode();
     console.log('[Admin] Code generated successfully:', code);
     
     const inviteCode: InviteCode = {
@@ -367,7 +367,7 @@ router.post('/admin/generate-code', requireAuth, requireAdmin, async (req: any, 
  * GET /payment/admin/codes
  * Admin: List all invite codes
  */
-router.get('/admin/codes', requireAuth, requireAdmin, (req: any, res) => {
+router.get('/admin/codes', requireAuth, requireAdmin, async (req: any, res) => {
   const allCodes = Array.from(store['inviteCodes'].values())
     .sort((a, b) => b.createdAt - a.createdAt);
 
@@ -390,7 +390,7 @@ router.get('/admin/codes', requireAuth, requireAdmin, (req: any, res) => {
  * POST /payment/admin/deactivate-code
  * Admin: Deactivate a code
  */
-router.post('/admin/deactivate-code', requireAuth, requireAdmin, (req: any, res) => {
+router.post('/admin/deactivate-code', requireAuth, requireAdmin, async (req: any, res) => {
   const { code } = req.body;
   
   if (!code) {
@@ -415,7 +415,7 @@ router.get('/qr/:code', async (req: any, res) => {
   const { code } = req.params;
 
   // Validate code exists
-  const inviteCode = store.getInviteCode(code);
+  const inviteCode = await store.getInviteCode(code);
   if (!inviteCode) {
     console.error(`[QR] Code not found: ${code}`);
     return res.status(404).send('Code not found');
@@ -456,7 +456,7 @@ router.get('/qr/:code', async (req: any, res) => {
  * Helper: Generate cryptographically secure invite code
  * Format: 16 uppercase alphanumeric characters
  */
-function generateSecureCode(): string {
+async function generateSecureCode(): Promise<string> {
   try {
     // Use Node.js crypto module for cryptographic randomness (AWS-compatible, zero dependencies)
     // Generate 24 random bytes, convert to base64url (alphanumeric + safe chars), take first 16
@@ -467,9 +467,10 @@ function generateSecureCode(): string {
       .toUpperCase();
     
     // Verify uniqueness (collision check)
-    if (store.getInviteCode(code)) {
+    const existing = await store.getInviteCode(code);
+    if (existing) {
       console.warn('[Security] Code collision detected, regenerating...');
-      return generateSecureCode(); // Recursive retry
+      return await generateSecureCode(); // Recursive retry
     }
     
     console.log('[CodeGen] Generated code:', code);
