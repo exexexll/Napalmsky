@@ -16,7 +16,6 @@ function PaywallPageContent() {
   const [inviteCode, setInviteCode] = useState('');
   const [validating, setValidating] = useState(false);
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
-  const [bypassing, setBypassing] = useState(false);
 
   // Check if already paid
   useEffect(() => {
@@ -68,37 +67,6 @@ function PaywallPageContent() {
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
-    }
-  };
-
-  const handleBypass = async () => {
-    const session = getSession();
-    if (!session) {
-      router.push('/onboarding');
-      return;
-    }
-
-    setBypassing(true);
-    try {
-      // Mark user as paid (test bypass) and generate invite code
-      const res = await fetch(`${API_BASE}/payment/test-bypass`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.sessionToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to bypass payment');
-      }
-
-      // Success - redirect to main
-      router.push('/main');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setBypassing(false);
     }
   };
 
@@ -220,15 +188,6 @@ function PaywallPageContent() {
                 <span className="text-xs text-[#eaeaf0]/60">Scan it with your camera to get free access</span>
               </p>
             </div>
-
-            {/* TEST BYPASS BUTTON (Remove in production) */}
-            <button
-              onClick={handleBypass}
-              disabled={bypassing}
-              className="focus-ring w-full rounded-lg bg-yellow-500/20 border border-yellow-500/30 px-4 py-2 text-xs font-medium text-yellow-300 transition-all hover:bg-yellow-500/30 disabled:opacity-50"
-            >
-              {bypassing ? 'Bypassing...' : '🧪 TEST: Bypass Payment (Dev Only)'}
-            </button>
 
             {/* Minimal Footer */}
             <p className="text-xs text-center text-[#eaeaf0]/30">

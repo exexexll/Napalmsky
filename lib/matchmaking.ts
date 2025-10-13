@@ -53,15 +53,8 @@ export async function getReel(sessionToken: string, cursor?: string, limit: numb
   return data;
 }
 
-export async function getQueue(sessionToken: string, testMode: boolean = false): Promise<QueueResponse> {
-  const params = new URLSearchParams();
-  if (testMode) {
-    params.append('testMode', 'true');
-  }
-  
-  const url = `${API_BASE}/room/queue${params.toString() ? '?' + params.toString() : ''}`;
-  
-  const res = await fetch(url, {
+export async function getQueue(sessionToken: string): Promise<QueueResponse> {
+  const res = await fetch(`${API_BASE}/room/queue`, {
     headers: {
       'Authorization': `Bearer ${sessionToken}`,
     },
