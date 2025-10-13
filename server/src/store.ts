@@ -350,13 +350,13 @@ class DataStore {
   getAllOnlineAvailable(excludeUserId?: string): string[] {
     const allPresence = Array.from(this.presence.entries());
     
-    // Debug: Log all presence states
+    // Debug: Log presence states
     console.log(`[Store] getAllOnlineAvailable called - Total presence entries: ${allPresence.length}`);
     allPresence.forEach(([uid, p]) => {
-      const user = this.getUser(uid);
+      // Note: User lookup removed from debug log (would require async)
       const isExcluded = uid === excludeUserId;
       const isIncluded = p.online && p.available && !isExcluded;
-      console.log(`[Store]   ${user?.name || 'Unknown'} (${uid.substring(0, 8)}): online=${p.online}, available=${p.available}, excluded=${isExcluded} → ${isIncluded ? '✅ INCLUDED' : '❌ FILTERED'}`);
+      console.log(`[Store]   ${uid.substring(0, 8)}: online=${p.online}, available=${p.available}, excluded=${isExcluded} → ${isIncluded ? '✅ INCLUDED' : '❌ FILTERED'}`);
     });
     
     const available = allPresence
@@ -547,13 +547,13 @@ class DataStore {
   }
 
   // Create or update ban record
-  createBanRecord(record: BanRecord): void {
+  async createBanRecord(record: BanRecord): Promise<void> {
     this.banRecords.set(record.userId, record);
     
     // Also update user's ban status
-    const user = this.getUser(record.userId);
+    const user = await this.getUser(record.userId);
     if (user) {
-      this.updateUser(record.userId, {
+      await this.updateUser(record.userId, {
         banStatus: record.banStatus,
         bannedAt: record.bannedAt,
         bannedReason: record.bannedReason,
@@ -591,7 +591,7 @@ class DataStore {
   }
 
   // Update ban status (for admin review)
-  updateBanStatus(userId: string, newStatus: 'permanent' | 'vindicated', reviewedBy: string): void {
+  async updateBanStatus(userId: string, newStatus: 'permanent' | 'vindicated', reviewedBy: string): Promise<void> {
     const banRecord = this.banRecords.get(userId);
     if (!banRecord) return;
 
@@ -601,11 +601,11 @@ class DataStore {
     banRecord.reviewedBy = reviewedBy;
 
     // Update user
-    const user = this.getUser(userId);
+    const user = await this.getUser(userId);
     if (user) {
       if (newStatus === 'vindicated') {
         // Clear ban
-        this.updateUser(userId, {
+        await this.updateUser(userId, {
           banStatus: 'none',
           bannedAt: undefined,
           bannedReason: undefined,
@@ -629,7 +629,7 @@ class DataStore {
           }
         });
       } else {
-        this.updateUser(userId, {
+        await this.updateUser(userId, {
           banStatus: newStatus,
           reviewStatus: 'reviewed_ban',
         });
@@ -640,8 +640,9 @@ class DataStore {
   }
 
   // Check if user is banned (any type)
+  // NOTE: Uses memory cache only for performance (called frequently)
   isUserBanned(userId: string): boolean {
-    const user = this.getUser(userId);
+    const user = this.users.get(userId); // Direct memory access for speed
     if (!user) return false;
     return user.banStatus === 'temporary' || user.banStatus === 'permanent';
   }
