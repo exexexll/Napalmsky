@@ -113,7 +113,14 @@ app.use(cors({
 app.use(securityHeaders);
 app.use(httpsRedirect);
 
-app.use(express.json());
+// JSON parsing middleware - EXCEPT for Stripe webhook (needs raw body)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/payment/webhook') {
+    next(); // Skip JSON parsing for webhook
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 // IP tracking middleware - track user IPs for ban enforcement
 app.use((req, res, next) => {

@@ -20,6 +20,7 @@ export const authLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in RateLimit-* headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
   skipSuccessfulRequests: true, // Only count failed attempts
+  validate: { trustProxy: false }, // Disable trust proxy validation warning
   handler: (req, res) => {
     console.warn(`[RateLimit] Auth limit exceeded for IP ${req.ip}`);
     res.status(429).json({
@@ -44,6 +45,7 @@ export const apiLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   handler: (req, res) => {
     console.warn(`[RateLimit] API limit exceeded for IP ${req.ip}`);
     res.status(429).json({
@@ -68,6 +70,7 @@ export const turnLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   handler: (req, res) => {
     console.warn(`[RateLimit] TURN limit exceeded for IP ${req.ip}`);
     res.status(429).json({
