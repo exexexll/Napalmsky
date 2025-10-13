@@ -322,3 +322,4 @@ git push origin master
 
 **Time to go live on napalmsky.com!** 🚀
 
+# Railway PostgreSQL connection configured
