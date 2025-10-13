@@ -1,8 +1,8 @@
 import express from 'express';
 import Stripe from 'stripe';
+import crypto from 'crypto';
 import { store } from './store';
 import { InviteCode } from './types';
-import cryptoRandomString from 'crypto-random-string';
 
 const router = express.Router();
 
@@ -552,8 +552,13 @@ router.get('/qr/:code', async (req: any, res) => {
  */
 function generateSecureCode(): string {
   try {
-    // Use crypto-random-string for cryptographic randomness
-    const code = cryptoRandomString({ length: 16, type: 'alphanumeric' }).toUpperCase();
+    // Use Node.js crypto module for cryptographic randomness (AWS-compatible, zero dependencies)
+    // Generate 24 random bytes, convert to base64url (alphanumeric + safe chars), take first 16
+    const code = crypto.randomBytes(24)
+      .toString('base64url')
+      .replace(/[^A-Z0-9]/gi, '') // Remove any non-alphanumeric
+      .substring(0, 16)
+      .toUpperCase();
     
     // Verify uniqueness (collision check)
     if (store.getInviteCode(code)) {
