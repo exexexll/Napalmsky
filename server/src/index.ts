@@ -47,7 +47,7 @@ io.use((socket, next) => {
     return next();
   }
   
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     console.warn('[Socket.io] Invalid pre-auth token - will retry via event');
     (socket as any).userId = null;
@@ -221,8 +221,8 @@ io.on('connection', (socket) => {
   }
 
   // Authenticate socket connection (for clients that don't use handshake auth)
-  socket.on('auth', ({ sessionToken }) => {
-    const session = store.getSession(sessionToken);
+  socket.on('auth', async ({ sessionToken }) => {
+    const session = await store.getSession(sessionToken);
     if (session) {
       // Check if user is banned
       if (store.isUserBanned(session.userId)) {
@@ -274,7 +274,7 @@ io.on('connection', (socket) => {
 
   // Presence: join (mark online) - DEPRECATED, presence set at auth now
   // Kept for backward compatibility but now just confirms presence
-  socket.on('presence:join', () => {
+  socket.on('presence:join', async () => {
     if (!currentUserId) {
       console.error('[Presence] ❌ presence:join called but user not authenticated yet!');
       return;
@@ -298,7 +298,7 @@ io.on('connection', (socket) => {
   });
 
   // Presence: leave
-  socket.on('presence:leave', () => {
+  socket.on('presence:leave', async () => {
     if (!currentUserId) return;
     
     store.updatePresence(currentUserId, {
@@ -316,7 +316,7 @@ io.on('connection', (socket) => {
   });
 
   // Queue: join (mark available for matching)
-  socket.on('queue:join', () => {
+  socket.on('queue:join', async () => {
     if (!currentUserId) {
       console.error('[Queue] ❌ queue:join called but user not authenticated yet!');
       return;
@@ -359,7 +359,7 @@ io.on('connection', (socket) => {
   });
 
   // Queue: leave
-  socket.on('queue:leave', () => {
+  socket.on('queue:leave', async () => {
     if (!currentUserId) return;
     
     store.updatePresence(currentUserId, {
@@ -375,7 +375,7 @@ io.on('connection', (socket) => {
   });
 
   // Call: invite
-  socket.on('call:invite', ({ toUserId, requestedSeconds }: { toUserId: string; requestedSeconds: number }) => {
+  socket.on('call:invite', async ({ toUserId, requestedSeconds }: { toUserId: string; requestedSeconds: number }) => {
     if (!currentUserId) {
       console.error('[Invite] ❌ call:invite received but currentUserId is null - user not authenticated yet');
       return socket.emit('error', { message: 'Please wait for authentication to complete' });
@@ -399,7 +399,7 @@ io.on('connection', (socket) => {
     }
 
     // Check if target user exists
-    const targetUser = store.getUser(toUserId);
+    const targetUser = await store.getUser(toUserId);
     if (!targetUser) {
       console.warn(`[Invite] Target user not found: ${toUserId}`);
       return socket.emit('call:declined', {
@@ -449,7 +449,7 @@ io.on('connection', (socket) => {
       callerSeconds: requestedSeconds,
     });
 
-    const fromUser = store.getUser(currentUserId);
+    const fromUser = await store.getUser(currentUserId);
 
     // Notify callee
     if (targetSocket) {
@@ -474,7 +474,7 @@ io.on('connection', (socket) => {
   });
 
   // Call: accept
-  socket.on('call:accept', ({ inviteId, requestedSeconds }: { inviteId: string; requestedSeconds: number }) => {
+  socket.on('call:accept', async ({ inviteId, requestedSeconds }: { inviteId: string; requestedSeconds: number }) => {
     console.log(`[Accept] 📞 Received accept for invite ${inviteId} with ${requestedSeconds}s`);
     
     const invite = store.getInvite(inviteId);
@@ -518,8 +518,8 @@ io.on('connection', (socket) => {
       duration: agreedSeconds,
     });
 
-    const user1 = store.getUser(invite.fromUserId);
-    const user2 = store.getUser(invite.toUserId);
+    const user1 = await store.getUser(invite.fromUserId);
+    const user2 = await store.getUser(invite.toUserId);
 
     const callerSocket = activeSockets.get(invite.fromUserId);
     const calleeSocket = activeSockets.get(invite.toUserId);
@@ -554,7 +554,7 @@ io.on('connection', (socket) => {
   });
 
   // Call: decline
-  socket.on('call:decline', ({ inviteId }: { inviteId: string }) => {
+  socket.on('call:decline', async ({ inviteId }: { inviteId: string }) => {
     const invite = store.getInvite(inviteId);
     if (!invite) return;
 
@@ -576,7 +576,7 @@ io.on('connection', (socket) => {
   });
 
   // Call: rescind (caller cancels their own invite)
-  socket.on('call:rescind', ({ toUserId }: { toUserId: string }) => {
+  socket.on('call:rescind', async ({ toUserId }: { toUserId: string }) => {
     if (!currentUserId) {
       console.error('[Rescind] ❌ call:rescind received but currentUserId is null');
       return;
@@ -610,7 +610,7 @@ io.on('connection', (socket) => {
   });
 
   // Join room
-  socket.on('room:join', ({ roomId }) => {
+  socket.on('room:join', async ({ roomId }) => {
     if (!currentUserId) {
       return socket.emit('error', { message: 'Not authenticated' });
     }
@@ -619,22 +619,22 @@ io.on('connection', (socket) => {
   });
 
   // WebRTC signaling
-  socket.on('rtc:offer', ({ roomId, offer }) => {
+  socket.on('rtc:offer', async ({ roomId, offer }) => {
     console.log(`RTC offer from ${currentUserId} in room ${roomId}`);
     socket.to(roomId).emit('rtc:offer', { offer, from: currentUserId });
   });
 
-  socket.on('rtc:answer', ({ roomId, answer }) => {
+  socket.on('rtc:answer', async ({ roomId, answer }) => {
     console.log(`RTC answer from ${currentUserId} in room ${roomId}`);
     socket.to(roomId).emit('rtc:answer', { answer, from: currentUserId });
   });
 
-  socket.on('rtc:ice', ({ roomId, candidate }) => {
+  socket.on('rtc:ice', async ({ roomId, candidate }) => {
     socket.to(roomId).emit('rtc:ice', { candidate, from: currentUserId });
   });
 
   // Chat messaging
-  socket.on('room:chat', ({ roomId, text }) => {
+  socket.on('room:chat', async ({ roomId, text }) => {
     if (!currentUserId) return;
     
     // Sanitize input to prevent XSS attacks
@@ -673,7 +673,7 @@ io.on('connection', (socket) => {
   });
 
   // Give social
-  socket.on('room:giveSocial', ({ roomId, socials }) => {
+  socket.on('room:giveSocial', async ({ roomId, socials }) => {
     if (!currentUserId) return;
 
     const message = {
@@ -694,14 +694,14 @@ io.on('connection', (socket) => {
   });
 
   // End call
-  socket.on('call:end', ({ roomId }) => {
+  socket.on('call:end', async ({ roomId }) => {
     if (!currentUserId) return;
 
     const room = activeRooms.get(roomId);
     if (room) {
       const sessionId = `session-${Date.now()}`;
-      const user1 = store.getUser(room.user1);
-      const user2 = store.getUser(room.user2);
+      const user1 = await store.getUser(room.user1);
+      const user2 = await store.getUser(room.user2);
 
       // Calculate actual duration (in seconds)
       const actualDuration = Math.floor((Date.now() - room.startedAt) / 1000);
@@ -747,7 +747,7 @@ io.on('connection', (socket) => {
         const user2Socket = activeSockets.get(room.user2);
 
         if (user1Socket) {
-          const u1 = store.getUser(room.user1);
+          const u1 = await store.getUser(room.user1);
           io.to(user1Socket).emit('metrics:update', {
             timerTotalSeconds: u1?.timerTotalSeconds || 0,
             sessionCount: u1?.sessionCount || 0,
@@ -756,7 +756,7 @@ io.on('connection', (socket) => {
         }
 
         if (user2Socket) {
-          const u2 = store.getUser(room.user2);
+          const u2 = await store.getUser(room.user2);
           io.to(user2Socket).emit('metrics:update', {
             timerTotalSeconds: u2?.timerTotalSeconds || 0,
             sessionCount: u2?.sessionCount || 0,
@@ -790,7 +790,7 @@ io.on('connection', (socket) => {
   });
 
   // Disconnect
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`Client disconnected: ${socket.id}`);
     if (currentUserId) {
       activeSockets.delete(currentUserId);
@@ -799,7 +799,7 @@ io.on('connection', (socket) => {
       Array.from(activeRooms.entries()).forEach(([roomId, room]) => {
         if (room.user1 === currentUserId || room.user2 === currentUserId) {
           const partnerId = room.user1 === currentUserId ? room.user2 : room.user1;
-          const partnerUser = store.getUser(partnerId);
+          const partnerUser = await store.getUser(partnerId);
           
           // Notify partner
           io.to(roomId).emit('peer:disconnected');
@@ -809,8 +809,8 @@ io.on('connection', (socket) => {
           const actualDuration = Math.floor((Date.now() - room.startedAt) / 1000);
           if (actualDuration >= 5) {
             const sessionId = `session-${Date.now()}-disconnected`;
-            const user1 = store.getUser(room.user1);
-            const user2 = store.getUser(room.user2);
+            const user1 = await store.getUser(room.user1);
+            const user2 = await store.getUser(room.user2);
             
             if (user1 && user2) {
               // Save history for both users with disconnection flag
