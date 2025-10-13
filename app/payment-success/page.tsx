@@ -13,6 +13,7 @@ function PaymentSuccessPageContent() {
   const [loading, setLoading] = useState(true);
   const [myInviteCode, setMyInviteCode] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const session = getSession();
@@ -34,14 +35,20 @@ function PaymentSuccessPageContent() {
       })
         .then(res => res.json())
         .then(data => {
-          if (data.paidStatus === 'paid') {
+          if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
             setMyInviteCode(data.myInviteCode || '');
             setQrCodeUrl(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/qr/${data.myInviteCode}`);
             setLoading(false);
-          } else {
-            // Payment not processed yet, keep checking
-            console.log('Payment not processed yet, retrying...');
+          } else if (retryCount < 5) {
+            // Payment not processed yet, retry (max 5 times = 10 seconds)
+            console.log(`Payment not processed yet, retrying... (${retryCount + 1}/5)`);
+            setRetryCount(retryCount + 1);
             setTimeout(() => window.location.reload(), 2000);
+          } else {
+            // Max retries reached - webhook probably isn't working
+            console.warn('Webhook not processing. Allowing user to continue anyway.');
+            setLoading(false);
+            // Show message to user that they can continue
           }
         })
         .catch(err => {
@@ -49,7 +56,7 @@ function PaymentSuccessPageContent() {
           setLoading(false);
         });
     }, 2000); // Wait 2 seconds for webhook
-  }, [router, searchParams]);
+  }, [router, searchParams, retryCount]);
 
   if (loading) {
     return (
@@ -57,6 +64,20 @@ function PaymentSuccessPageContent() {
         <div className="text-center">
           <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-[#ff9b6b] border-t-transparent" />
           <p className="text-[#eaeaf0]">Processing your payment...</p>
+          {retryCount > 2 && (
+            <div className="mt-6 space-y-3">
+              <p className="text-sm text-[#eaeaf0]/60">This is taking longer than expected...</p>
+              <button
+                onClick={() => {
+                  setLoading(false);
+                  router.push('/main');
+                }}
+                className="rounded-xl bg-[#ff9b6b]/20 px-6 py-2 text-sm text-[#ff9b6b] hover:bg-[#ff9b6b]/30"
+              >
+                Continue to App
+              </button>
+            </div>
+          )}
         </div>
       </main>
     );
