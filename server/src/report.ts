@@ -8,13 +8,13 @@ const router = express.Router();
 /**
  * Middleware to verify session token
  */
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: 'Authorization required' });
   }
 
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
@@ -48,7 +48,7 @@ function requireAdmin(req: any, res: any, next: any) {
  * Report a user after a call
  * Body: { reportedUserId, reason?, roomId? }
  */
-router.post('/user', requireAuth, (req: any, res) => {
+router.post('/user', requireAuth, async (req: any, res) => {
   const { reportedUserId, reason, roomId } = req.body;
   const reporterUserId = req.userId;
   const reporterIp = req.userIp;
@@ -74,8 +74,8 @@ router.post('/user', requireAuth, (req: any, res) => {
   }
 
   // Get user details
-  const reportedUser = store.getUser(reportedUserId);
-  const reporterUser = store.getUser(reporterUserId);
+  const reportedUser = await store.getUser(reportedUserId);
+  const reporterUser = await store.getUser(reporterUserId);
 
   if (!reportedUser || !reporterUser) {
     return res.status(404).json({ error: 'User not found' });
@@ -144,7 +144,7 @@ router.post('/user', requireAuth, (req: any, res) => {
  * GET /report/pending
  * Get all pending ban reviews (admin)
  */
-router.get('/pending', requireAuth, requireAdmin, (req: any, res) => {
+router.get('/pending', requireAuth, requireAdmin, async (req: any, res) => {
   const pendingReviews = store.getPendingReviews();
   
   // Include full report details for each
@@ -163,7 +163,7 @@ router.get('/pending', requireAuth, requireAdmin, (req: any, res) => {
  * GET /report/all
  * Get all reports (admin)
  */
-router.get('/all', requireAuth, requireAdmin, (req: any, res) => {
+router.get('/all', requireAuth, requireAdmin, async (req: any, res) => {
   const allReports = store.getAllReports();
   res.json({
     reports: allReports,
@@ -176,7 +176,7 @@ router.get('/all', requireAuth, requireAdmin, (req: any, res) => {
  * Review a ban and make decision (admin)
  * Body: { decision: 'permanent' | 'vindicated' }
  */
-router.post('/review/:userId', requireAuth, requireAdmin, (req: any, res) => {
+router.post('/review/:userId', requireAuth, requireAdmin, async (req: any, res) => {
   const { userId } = req.params;
   const { decision } = req.body;
   const reviewerId = req.userId;
@@ -232,8 +232,8 @@ router.get('/blacklist', (req, res) => {
  * GET /report/check-ban
  * Check if current user is banned (authenticated)
  */
-router.get('/check-ban', requireAuth, (req: any, res) => {
-  const user = store.getUser(req.userId);
+router.get('/check-ban', requireAuth, async (req: any, res) => {
+  const user = await store.getUser(req.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -265,7 +265,7 @@ router.get('/check-ip/:ip', (req, res) => {
  * GET /report/stats
  * Get reporting statistics (admin)
  */
-router.get('/stats', requireAuth, requireAdmin, (req: any, res) => {
+router.get('/stats', requireAuth, requireAdmin, async (req: any, res) => {
   const allReports = store.getAllReports();
   const allBans = store.getAllBanRecords();
   const pending = store.getPendingReviews();
