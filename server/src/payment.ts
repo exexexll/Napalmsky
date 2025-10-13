@@ -128,8 +128,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
 
       console.log(`[Payment] ✅ Payment successful for user ${userId.substring(0, 8)}`);
 
-      // Mark user as paid
-      store.updateUser(userId, {
+      // Mark user as paid (await for database)
+      await store.updateUser(userId, {
         paidStatus: 'paid',
         paidAt: Date.now(),
         paymentId: session.payment_intent as string,
@@ -137,7 +137,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
 
       // Generate user's invite code (4 uses)
       const inviteCode = generateSecureCode();
-      const user = store.getUser(userId);
+      const user = await store.getUser(userId);
       
       if (user) {
         const code: InviteCode = {
@@ -154,8 +154,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
 
         store.createInviteCode(code);
         
-        // Store code on user profile
-        store.updateUser(userId, {
+        // Store code on user profile (await for database)
+        await store.updateUser(userId, {
           myInviteCode: inviteCode,
           inviteCodeUsesRemaining: 4,
         });

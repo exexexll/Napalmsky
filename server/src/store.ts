@@ -1,4 +1,5 @@
 import { User, Session, ReferralNotification, Report, BanRecord, IPBan, InviteCode, RateLimitRecord } from './types';
+import { query } from './database';
 
 interface ChatMessage {
   from: string;
@@ -47,13 +48,15 @@ interface ReferralMapping {
 }
 
 class DataStore {
+  private useDatabase = !!process.env.DATABASE_URL;
+  
   private users = new Map<string, User>();
   private sessions = new Map<string, Session>();
   private history = new Map<string, ChatHistory[]>(); // userId -> history[]
   private timerTotals = new Map<string, number>(); // userId -> cumulative seconds
-  private presence = new Map<string, Presence>(); // userId -> presence
+  private presence = new Map<string, Presence>(); // userId -> presence (always in-memory for real-time)
   private cooldowns = new Map<string, number>(); // "userId1|userId2" -> expiresAt
-  private activeInvites = new Map<string, ActiveInvite>(); // inviteId -> invite
+  private activeInvites = new Map<string, ActiveInvite>(); // inviteId -> invite (always in-memory for real-time)
   private seenInSession = new Map<string, Set<string>>(); // sessionId -> Set<userIds>
   private referralNotifications = new Map<string, ReferralNotification[]>(); // userId -> notifications[]
   private referralMappings = new Map<string, ReferralMapping>(); // code -> {targetUserId, createdByUserId, ...}
@@ -70,45 +73,217 @@ class DataStore {
   private inviteCodes = new Map<string, InviteCode>(); // code -> InviteCode
   private rateLimits = new Map<string, RateLimitRecord>(); // ipAddress -> RateLimitRecord
 
-  // User operations
-  createUser(user: User): void {
+  constructor() {
+    console.log(`[Store] Using ${this.useDatabase ? 'PostgreSQL' : 'in-memory'} storage`);
+  }
+
+  // User operations - with PostgreSQL support
+  async createUser(user: User): Promise<void> {
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO users (user_id, name, gender, account_type, email, password_hash, selfie_url, video_url, 
+           socials, paid_status, paid_at, payment_id, invite_code_used, my_invite_code, invite_code_uses_remaining,
+           ban_status, introduced_to, introduced_by, introduced_via_code)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+          [
+            user.userId, user.name, user.gender, user.accountType, user.email || null,
+            user.password_hash || null, user.selfieUrl || null, user.videoUrl || null,
+            JSON.stringify(user.socials || {}), user.paidStatus || 'unpaid',
+            user.paidAt ? new Date(user.paidAt) : null, user.paymentId || null,
+            user.inviteCodeUsed || null, user.myInviteCode || null, user.inviteCodeUsesRemaining || 0,
+            user.banStatus || 'none', user.introducedTo || null, user.introducedBy || null,
+            user.introducedViaCode || null
+          ]
+        );
+        console.log('[Store] User created in database:', user.userId.substring(0, 8));
+      } catch (error) {
+        console.error('[Store] Failed to create user in database:', error);
+        throw error;
+      }
+    }
+    // Also keep in memory for fast access
     this.users.set(user.userId, user);
   }
 
-  getUser(userId: string): User | undefined {
-    return this.users.get(userId);
+  async getUser(userId: string): Promise<User | undefined> {
+    // Check memory first (fast)
+    let user = this.users.get(userId);
+    
+    // If not in memory and we have database, check there
+    if (!user && this.useDatabase) {
+      try {
+        const result = await query('SELECT * FROM users WHERE user_id = $1', [userId]);
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          user = this.dbRowToUser(row);
+          // Cache in memory
+          this.users.set(userId, user);
+          console.log('[Store] User loaded from database:', userId.substring(0, 8));
+        }
+      } catch (error) {
+        console.error('[Store] Failed to get user from database:', error);
+      }
+    }
+    
+    return user;
+  }
+  
+  // Helper: Convert database row to User object
+  private dbRowToUser(row: any): User {
+    return {
+      userId: row.user_id,
+      name: row.name,
+      gender: row.gender,
+      accountType: row.account_type,
+      email: row.email,
+      password_hash: row.password_hash,
+      selfieUrl: row.selfie_url,
+      videoUrl: row.video_url,
+      socials: row.socials || {},
+      paidStatus: row.paid_status,
+      paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
+      paymentId: row.payment_id,
+      inviteCodeUsed: row.invite_code_used,
+      myInviteCode: row.my_invite_code,
+      inviteCodeUsesRemaining: row.invite_code_uses_remaining,
+      banStatus: row.ban_status,
+      bannedAt: row.banned_at ? new Date(row.banned_at).getTime() : undefined,
+      bannedReason: row.banned_reason,
+      reviewStatus: row.review_status,
+      introducedTo: row.introduced_to,
+      introducedBy: row.introduced_by,
+      introducedViaCode: row.introduced_via_code,
+      createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+    };
   }
 
-  getUserByEmail(email: string): User | undefined {
-    return Array.from(this.users.values()).find(u => u.email === email);
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    // Check memory first
+    let user = Array.from(this.users.values()).find(u => u.email === email);
+    
+    // If not found and database available, check there
+    if (!user && this.useDatabase && email) {
+      try {
+        const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+        if (result.rows.length > 0) {
+          user = this.dbRowToUser(result.rows[0]);
+          this.users.set(user.userId, user);
+        }
+      } catch (error) {
+        console.error('[Store] Failed to get user by email from database:', error);
+      }
+    }
+    
+    return user;
   }
 
-  updateUser(userId: string, updates: Partial<User>): void {
+  async updateUser(userId: string, updates: Partial<User>): Promise<void> {
+    // Update in memory
     const user = this.users.get(userId);
     if (user) {
-      this.users.set(userId, { ...user, ...updates });
+      const updatedUser = { ...user, ...updates };
+      this.users.set(userId, updatedUser);
+      
+      // Also update in database if available
+      if (this.useDatabase) {
+        try {
+          // Build dynamic UPDATE query based on what fields were updated
+          const setClauses: string[] = [];
+          const values: any[] = [];
+          let paramIndex = 1;
+          
+          if (updates.name !== undefined) { setClauses.push(`name = $${paramIndex++}`); values.push(updates.name); }
+          if (updates.email !== undefined) { setClauses.push(`email = $${paramIndex++}`); values.push(updates.email); }
+          if (updates.password_hash !== undefined) { setClauses.push(`password_hash = $${paramIndex++}`); values.push(updates.password_hash); }
+          if (updates.selfieUrl !== undefined) { setClauses.push(`selfie_url = $${paramIndex++}`); values.push(updates.selfieUrl); }
+          if (updates.videoUrl !== undefined) { setClauses.push(`video_url = $${paramIndex++}`); values.push(updates.videoUrl); }
+          if (updates.socials !== undefined) { setClauses.push(`socials = $${paramIndex++}`); values.push(JSON.stringify(updates.socials)); }
+          if (updates.paidStatus !== undefined) { setClauses.push(`paid_status = $${paramIndex++}`); values.push(updates.paidStatus); }
+          if (updates.paidAt !== undefined) { setClauses.push(`paid_at = $${paramIndex++}`); values.push(updates.paidAt ? new Date(updates.paidAt) : null); }
+          if (updates.paymentId !== undefined) { setClauses.push(`payment_id = $${paramIndex++}`); values.push(updates.paymentId); }
+          if (updates.myInviteCode !== undefined) { setClauses.push(`my_invite_code = $${paramIndex++}`); values.push(updates.myInviteCode); }
+          if (updates.inviteCodeUsesRemaining !== undefined) { setClauses.push(`invite_code_uses_remaining = $${paramIndex++}`); values.push(updates.inviteCodeUsesRemaining); }
+          if (updates.inviteCodeUsed !== undefined) { setClauses.push(`invite_code_used = $${paramIndex++}`); values.push(updates.inviteCodeUsed); }
+          if (updates.banStatus !== undefined) { setClauses.push(`ban_status = $${paramIndex++}`); values.push(updates.banStatus); }
+          if (updates.accountType !== undefined) { setClauses.push(`account_type = $${paramIndex++}`); values.push(updates.accountType); }
+          
+          if (setClauses.length > 0) {
+            values.push(userId);
+            await query(
+              `UPDATE users SET ${setClauses.join(', ')}, updated_at = NOW() WHERE user_id = $${paramIndex}`,
+              values
+            );
+            console.log('[Store] User updated in database:', userId.substring(0, 8));
+          }
+        } catch (error) {
+          console.error('[Store] Failed to update user in database:', error);
+          // Don't throw - fallback to memory-only mode
+        }
+      }
     }
   }
 
-  // Session operations
-  createSession(session: Session): void {
+  // Session operations - with PostgreSQL support  
+  async createSession(session: Session): Promise<void> {
     this.sessions.set(session.sessionToken, session);
+    
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO sessions (session_token, user_id, ip_address, created_at, expires_at)
+           VALUES ($1, $2, $3, $4, $5) ON CONFLICT (session_token) DO UPDATE SET expires_at = EXCLUDED.expires_at`,
+          [session.sessionToken, session.userId, session.ipAddress || null, new Date(session.createdAt), new Date(session.expiresAt)]
+        );
+      } catch (error) {
+        console.error('[Store] Failed to create session in database:', error);
+      }
+    }
   }
 
-  getSession(sessionToken: string): Session | undefined {
-    const session = this.sessions.get(sessionToken);
+  async getSession(sessionToken: string): Promise<Session | undefined> {
+    let session = this.sessions.get(sessionToken);
+    
+    if (!session && this.useDatabase) {
+      try {
+        const result = await query('SELECT * FROM sessions WHERE session_token = $1 AND expires_at > NOW()', [sessionToken]);
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          session = {
+            sessionToken: row.session_token,
+            userId: row.user_id,
+            createdAt: new Date(row.created_at).getTime(),
+            expiresAt: new Date(row.expires_at).getTime(),
+            ipAddress: row.ip_address,
+          };
+          this.sessions.set(sessionToken, session);
+        }
+      } catch (error) {
+        console.error('[Store] Failed to get session from database:', error);
+      }
+    }
+    
     if (session && session.expiresAt > Date.now()) {
       return session;
     }
-    // Auto-cleanup expired sessions
     if (session) {
       this.sessions.delete(sessionToken);
+      if (this.useDatabase) {
+        try {
+          await query('DELETE FROM sessions WHERE session_token = $1', [sessionToken]);
+        } catch (error) {}
+      }
     }
     return undefined;
   }
 
-  deleteSession(sessionToken: string): void {
+  async deleteSession(sessionToken: string): Promise<void> {
     this.sessions.delete(sessionToken);
+    if (this.useDatabase) {
+      try {
+        await query('DELETE FROM sessions WHERE session_token = $1', [sessionToken]);
+      } catch (error) {}
+    }
   }
 
   // History operations
