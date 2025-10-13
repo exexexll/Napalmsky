@@ -75,6 +75,22 @@ class DataStore {
 
   constructor() {
     console.log(`[Store] Using ${this.useDatabase ? 'PostgreSQL' : 'in-memory'} storage`);
+    
+    // Test database connection on startup
+    if (this.useDatabase) {
+      this.testDatabaseConnection();
+    }
+  }
+  
+  private async testDatabaseConnection(): Promise<void> {
+    try {
+      const result = await query('SELECT NOW() as time');
+      console.log('[Store] ✅ PostgreSQL connection successful:', result.rows[0].time);
+    } catch (error) {
+      console.error('[Store] ❌ PostgreSQL connection failed:', error);
+      console.warn('[Store] ⚠️  Falling back to in-memory storage');
+      this.useDatabase = false; // Disable database, use memory only
+    }
   }
 
   // User operations - with PostgreSQL support
@@ -99,10 +115,11 @@ class DataStore {
         console.log('[Store] User created in database:', user.userId.substring(0, 8));
       } catch (error) {
         console.error('[Store] Failed to create user in database:', error);
-        throw error;
+        console.warn('[Store] Continuing with memory-only storage for this user');
+        // Don't throw - allow memory fallback
       }
     }
-    // Also keep in memory for fast access
+    // Always keep in memory for fast access and fallback
     this.users.set(user.userId, user);
   }
 
