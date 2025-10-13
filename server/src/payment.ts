@@ -16,13 +16,13 @@ const PRICE_AMOUNT = 50; // $0.50 in cents (Stripe minimum for checkout)
 /**
  * Middleware to verify session token
  */
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: 'Authorization required' });
   }
 
-  const session = store.getSession(token);
+  const session = await store.getSession(token);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
@@ -45,7 +45,7 @@ function requireAdmin(req: any, res: any, next: any) {
  * Create a Stripe checkout session for $1 payment
  */
 router.post('/create-checkout', requireAuth, async (req: any, res) => {
-  const user = store.getUser(req.userId);
+  const user = await store.getUser(req.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -183,7 +183,7 @@ router.post('/apply-code', requireAuth, async (req: any, res) => {
     return res.status(400).json({ error: 'Invite code is required' });
   }
 
-  const user = store.getUser(req.userId);
+  const user = await store.getUser(req.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -284,7 +284,7 @@ router.post('/validate-code', async (req: any, res) => {
  * Check if user has paid or used valid code
  */
 router.get('/status', requireAuth, (req: any, res) => {
-  const user = store.getUser(req.userId);
+  const user = await store.getUser(req.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }

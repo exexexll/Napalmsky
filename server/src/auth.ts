@@ -21,7 +21,7 @@ export function createAuthRoutes(
  * Optional: referralCode to track who referred this user
  * Optional: inviteCode for paywall bypass (QR code access)
  */
-router.post('/guest', (req: any, res) => {
+router.post('/guest', async (req: any, res) => {
   const { name, gender, referralCode, inviteCode } = req.body;
   const ip = req.userIp; // Set by middleware with centralized IP extraction
 
@@ -136,8 +136,8 @@ router.post('/guest', (req: any, res) => {
     ipAddress: ip,
   };
 
-  store.createUser(user);
-  store.createSession(session);
+  await store.createUser(user);
+  await store.createSession(session);
   
   // Track IP for this user
   store.addUserIp(userId, ip);
@@ -180,7 +180,7 @@ router.post('/guest', (req: any, res) => {
   if (referralInfo) {
     const presence = store.getPresence(referralInfo.targetUserId);
     targetOnline = !!(presence && presence.online && presence.available);
-    targetUser = store.getUser(referralInfo.targetUserId);
+    targetUser = await store.getUser(referralInfo.targetUserId);
   }
 
   res.json({
@@ -215,18 +215,18 @@ router.post('/link', async (req, res) => {
     return res.status(400).json({ error: 'Session token, email, and password are required' });
   }
 
-  const session = store.getSession(sessionToken);
+  const session = await store.getSession(sessionToken);
   if (!session) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
 
-  const user = store.getUser(session.userId);
+  const user = await store.getUser(session.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
 
   // Check if email already exists
-  const existingUser = store.getUserByEmail(email);
+  const existingUser = await store.getUserByEmail(email);
   if (existingUser && existingUser.userId !== user.userId) {
     return res.status(409).json({ error: 'Email already registered' });
   }
@@ -235,7 +235,7 @@ router.post('/link', async (req, res) => {
   const password_hash = await bcrypt.hash(password, 12);
   
   // Update user to permanent
-  store.updateUser(user.userId, {
+  await store.updateUser(user.userId, {
     accountType: 'permanent',
     email,
     password_hash, // ✅ Securely hashed with bcrypt
@@ -246,7 +246,7 @@ router.post('/link', async (req, res) => {
     ...session,
     expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days
   };
-  store.createSession(extendedSession);
+  await store.createSession(extendedSession);
 
   res.json({
     success: true,
@@ -266,7 +266,7 @@ router.post('/login', async (req: any, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  const user = store.getUserByEmail(email);
+  const user = await store.getUserByEmail(email);
   if (!user || user.accountType !== 'permanent') {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -304,7 +304,7 @@ router.post('/login', async (req: any, res) => {
     ipAddress: ip,
   };
 
-  store.createSession(session);
+  await store.createSession(session);
   
   // Track IP for this user
   store.addUserIp(user.userId, ip);
