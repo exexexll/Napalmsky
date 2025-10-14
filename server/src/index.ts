@@ -218,6 +218,11 @@ io.on('connection', (socket) => {
       lastActiveAt: Date.now(),
     });
     console.log(`[Connection] User ${currentUserId.substring(0, 8)} pre-authenticated and marked online`);
+    
+    // CRITICAL: Emit auth:success for pre-authenticated users
+    // This triggers frontend to join queue (presence:join, queue:join)
+    socket.emit('auth:success');
+    console.log(`[Connection] ✅ Emitted auth:success for pre-authenticated user`);
   }
 
   // Authenticate socket connection (for clients that don't use handshake auth)
