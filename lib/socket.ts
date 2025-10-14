@@ -9,10 +9,29 @@ import { SOCKET_URL } from './config';
 let socket: Socket | null = null;
 
 export function connectSocket(sessionToken: string): Socket {
-  if (socket && socket.connected) {
-    return socket;
+  // Reuse existing socket if it's connected OR connecting
+  if (socket) {
+    if (socket.connected) {
+      console.log('[Socket] Reusing connected socket:', socket.id);
+      return socket;
+    }
+    
+    // Check if it's in the process of connecting
+    const isConnecting = !socket.connected && !socket.disconnected;
+    if (isConnecting) {
+      console.log('[Socket] Reusing socket that is connecting...');
+      return socket;
+    }
+    
+    // Socket exists but is disconnected - clean it up first
+    console.log('[Socket] Cleaning up disconnected socket');
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
   }
 
+  console.log('[Socket] Creating new socket connection to:', SOCKET_URL);
+  
   socket = io(SOCKET_URL, {
     autoConnect: true,
     auth: {
@@ -32,15 +51,20 @@ export function connectSocket(sessionToken: string): Socket {
   });
 
   socket.on('auth:success', () => {
-    console.log('[Socket] Authenticated');
+    console.log('[Socket] ✅ Authenticated successfully');
   });
 
   socket.on('auth:failed', () => {
-    console.error('[Socket] Authentication failed');
+    console.error('[Socket] ❌ Authentication failed - check session token validity');
+    console.error('[Socket] Session token:', sessionToken?.substring(0, 8) + '...');
   });
 
-  socket.on('disconnect', () => {
-    console.log('[Socket] Disconnected');
+  socket.on('disconnect', (reason) => {
+    console.log('[Socket] Disconnected:', reason);
+  });
+
+  socket.on('connect_error', (error) => {
+    console.error('[Socket] Connection error:', error.message);
   });
 
   return socket;
