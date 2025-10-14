@@ -819,12 +819,14 @@ io.on('connection', (socket) => {
       // Wait 5 seconds before cleaning up
       setTimeout(async () => {
         // Check if user reconnected
+        if (!currentUserId) return;
+        
         const stillHasSocket = activeSockets.get(currentUserId);
         if (!stillHasSocket) {
-          console.log(`[Disconnect] User ${currentUserId?.substring(0, 8)} did not reconnect, cleaning up...`);
+          console.log(`[Disconnect] User ${currentUserId.substring(0, 8)} did not reconnect, cleaning up...`);
           await handleFullDisconnect(currentUserId);
         } else {
-          console.log(`[Disconnect] User ${currentUserId?.substring(0, 8)} reconnected successfully!`);
+          console.log(`[Disconnect] User ${currentUserId.substring(0, 8)} reconnected successfully!`);
         }
       }, 5000);
       
