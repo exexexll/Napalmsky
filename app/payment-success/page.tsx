@@ -139,10 +139,10 @@ function PaymentSuccessPageContent() {
 
             {/* Continue Button - Minimal */}
             <button
-              onClick={() => router.push('/main')}
+              onClick={() => router.push('/onboarding')}
               className="focus-ring w-full rounded-xl bg-[#ff9b6b] px-6 py-3 font-medium text-[#0a0a0c] transition-opacity hover:opacity-90"
             >
-              Continue →
+              Continue to Profile Setup →
             </button>
           </motion.div>
         </div>

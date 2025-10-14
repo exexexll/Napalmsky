@@ -85,9 +85,10 @@ router.post('/selfie', requireAuth, (req: any, res) => {
     }
 
     try {
-      // Use full URL with API base for proper CORS and serving
-      const selfieUrl = `http://localhost:3001/uploads/${req.file.filename}`;
-      store.updateUser(req.userId, { selfieUrl });
+      // Use dynamic API base from environment or request origin
+      const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
+      const selfieUrl = `${apiBase}/uploads/${req.file.filename}`;
+      await store.updateUser(req.userId, { selfieUrl });
       
       console.log(`[Upload] ✅ Selfie uploaded successfully for user ${req.userId.substring(0, 8)}`);
       res.json({ selfieUrl });
@@ -125,9 +126,10 @@ router.post('/video', requireAuth, (req: any, res) => {
     }
 
     try {
-      // Use full URL with API base for proper CORS and serving
-      const videoUrl = `http://localhost:3001/uploads/${req.file.filename}`;
-      store.updateUser(req.userId, { videoUrl });
+      // Use dynamic API base from environment or request origin
+      const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
+      const videoUrl = `${apiBase}/uploads/${req.file.filename}`;
+      await store.updateUser(req.userId, { videoUrl });
       
       console.log(`[Upload] ✅ Video uploaded successfully for user ${req.userId.substring(0, 8)}`);
       res.json({ videoUrl });

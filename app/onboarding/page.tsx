@@ -58,28 +58,42 @@ function OnboardingPageContent() {
       fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/user/me`, {
         headers: { 'Authorization': `Bearer ${existingSession.sessionToken}` },
       })
-        .then(res => {
-          if (res.ok) {
-            // Session is valid - redirect based on context
+        .then(res => res.json())
+        .then(data => {
+          // Check if profile is complete (has selfie AND video)
+          const hasCompletedProfile = data.selfieUrl && data.videoUrl;
+          
+          if (hasCompletedProfile) {
+            // Profile complete - redirect to main app
             if (ref) {
-              console.log('[Onboarding] Valid session + referral - redirecting to matchmaking');
+              console.log('[Onboarding] Complete profile + referral - redirecting to matchmaking');
               router.push(`/main?openMatchmaking=true&ref=${ref}`);
-            } else if (invite) {
-              console.log('[Onboarding] Valid session + invite code - redirecting to main (no code used)');
-              router.push('/main');
             } else {
-              console.log('[Onboarding] Valid session - redirecting to main');
+              console.log('[Onboarding] Complete profile - redirecting to main');
               router.push('/main');
             }
           } else {
-            // Session invalid - clear it and continue with onboarding
-            console.log('[Onboarding] Invalid session detected - clearing and allowing signup');
-            localStorage.removeItem('napalmsky_session');
+            // Profile incomplete - resume onboarding
+            console.log('[Onboarding] Incomplete profile - resuming onboarding');
+            setSessionToken(existingSession.sessionToken);
+            setUserId(existingSession.userId);
+            
+            // Determine which step to resume from
+            if (!data.selfieUrl) {
+              console.log('[Onboarding] No selfie - starting from selfie step');
+              setStep('selfie');
+            } else if (!data.videoUrl) {
+              console.log('[Onboarding] No video - starting from video step');
+              setStep('video');
+            } else {
+              // Shouldn't reach here, but go to permanent step
+              setStep('permanent');
+            }
           }
         })
         .catch(err => {
           // Network error or session invalid - clear and allow onboarding
-          console.log('[Onboarding] Session validation failed - clearing');
+          console.log('[Onboarding] Session validation failed - clearing', err);
           localStorage.removeItem('napalmsky_session');
         });
       return;

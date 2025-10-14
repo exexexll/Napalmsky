@@ -32,8 +32,9 @@ function PaywallPageContent() {
       .then(res => res.json())
       .then(data => {
         if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
-          // Already paid, continue to app
-          router.push('/main');
+          // Already paid, continue to onboarding to complete profile
+          console.log('[Paywall] Already paid - redirecting to onboarding');
+          router.push('/onboarding');
         }
       })
       .catch(err => console.error('Failed to check payment status:', err));
@@ -121,8 +122,9 @@ function PaywallPageContent() {
         throw new Error(data.error || 'Failed to apply code');
       }
 
-      // Success! Navigate to main app
-      router.push('/main');
+      // Success! Navigate to onboarding to complete profile
+      console.log('[Paywall] Code applied successfully - redirecting to onboarding');
+      router.push('/onboarding');
     } catch (err: any) {
       setError(err.message);
     } finally {

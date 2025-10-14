@@ -270,8 +270,23 @@ $$ LANGUAGE plpgsql;
 -- DELETE FROM chat_history WHERE started_at < NOW() - INTERVAL '365 days';
 
 -- ===== GRANTS (Replace 'napalmsky' with your DB user) =====
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO napalmsky;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO napalmsky;
+-- Note: These grants are conditional - they only run if the role exists and if we're not already that user
+DO $$ 
+BEGIN
+  -- Check if we're running as a different user than napalmsky
+  IF CURRENT_USER != 'napalmsky' THEN
+    -- Check if napalmsky role exists
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'napalmsky') THEN
+      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO napalmsky;
+      GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO napalmsky;
+      RAISE NOTICE 'Granted permissions to napalmsky user';
+    ELSE
+      RAISE NOTICE 'Role napalmsky does not exist, skipping grants (user will inherit permissions as database owner)';
+    END IF;
+  ELSE
+    RAISE NOTICE 'Running as napalmsky user, grants not needed (already owner)';
+  END IF;
+END $$;
 
 -- ===== VACUUM & ANALYZE (Run weekly for performance) =====
 -- VACUUM ANALYZE;

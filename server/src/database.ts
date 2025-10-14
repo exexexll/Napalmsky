@@ -6,22 +6,59 @@
 
 import { Pool, QueryResult } from 'pg';
 
-// Initialize connection pool
+// Initialize connection pool with better error handling
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: parseInt(process.env.DATABASE_POOL_MAX || '20'), // Maximum connections
   min: parseInt(process.env.DATABASE_POOL_MIN || '2'), // Minimum connections
-  idleTimeoutMillis: 30000,
+  idleTimeoutMillis: 30000, // Remove idle clients after 30s
   connectionTimeoutMillis: parseInt(process.env.DATABASE_TIMEOUT || '30000'),
+  // Allow pool to recover from connection errors
+  allowExitOnIdle: false, // Keep pool alive even with no connections
+  // Add statement timeout to prevent hanging queries
+  statement_timeout: parseInt(process.env.DATABASE_QUERY_TIMEOUT || '30000'),
   ssl: process.env.NODE_ENV === 'production' ? {
     rejectUnauthorized: false // For AWS RDS
   } : false,
 });
 
 // Connection error handling
-pool.on('error', (err) => {
-  console.error('[Database] Unexpected error on idle client', err);
-  process.exit(-1);
+// Note: This handles errors on idle clients in the pool
+pool.on('error', (err: any) => {
+  console.error('[Database] Unexpected error on idle client:', {
+    message: err.message,
+    code: err.code,
+    errno: err.errno
+  });
+  
+  // Only exit on critical connection errors
+  // Don't exit on client disconnections or transient network issues
+  const criticalErrors = ['ECONNREFUSED', 'ENOTFOUND', 'PROTOCOL_CONNECTION_LOST'];
+  
+  if (criticalErrors.includes(err.code)) {
+    console.error('[Database] CRITICAL: Database connection lost, attempting graceful shutdown...');
+    // Give active requests 10 seconds to complete before forcing exit
+    setTimeout(() => {
+      console.error('[Database] Forcing exit due to unrecoverable database error');
+      process.exit(1);
+    }, 10000);
+  } else {
+    // Log but don't exit for non-critical errors (like connection reset by peer)
+    console.warn('[Database] Non-critical error, continuing operation. Pool will handle reconnection.');
+  }
+});
+
+// Log connection lifecycle events (helps with debugging)
+pool.on('connect', (client) => {
+  console.log('[Database] New client connected to pool');
+});
+
+pool.on('acquire', (client) => {
+  console.log('[Database] Client acquired from pool');
+});
+
+pool.on('remove', (client) => {
+  console.log('[Database] Client removed from pool');
 });
 
 // Query helper with logging and error handling
