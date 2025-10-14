@@ -937,7 +937,7 @@ io.on('connection', (socket) => {
       
       console.log(`[Disconnect] ✅ User ${currentUserId.substring(0, 8)} marked offline`);
     }
-  });
+  }
 });
 
 server.listen(PORT, () => {
