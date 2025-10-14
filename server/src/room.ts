@@ -81,7 +81,7 @@ router.get('/queue', requirePayment, async (req: any, res) => {
       }
       
       // Check cooldown (mark but don't filter)
-      const hasCooldown = store.hasCooldown(req.userId, uid);
+      const hasCooldown = await store.hasCooldown(req.userId, uid);
       const cooldownExpiry = hasCooldown ? store.getCooldownExpiry(req.userId, uid) : null;
 
       if (hasCooldown) {
@@ -132,11 +132,14 @@ router.get('/reel', requirePayment, async (req: any, res) => {
   const seen = store.getSeen(cursor);
 
   // Filter out seen users and cooldowns
-  const unseen = onlineUsers.filter(uid => {
-    if (seen.has(uid)) return false;
-    if (store.hasCooldown(req.userId, uid)) return false;
-    return true;
+  const unseenPromises = onlineUsers.map(async uid => {
+    if (seen.has(uid)) return null;
+    if (await store.hasCooldown(req.userId, uid)) return null;
+    return uid;
   });
+  
+  const unseenResults = await Promise.all(unseenPromises);
+  const unseen = unseenResults.filter((uid): uid is string => uid !== null);
 
   // Random shuffle (Fisher-Yates)
   const shuffled = [...unseen];
