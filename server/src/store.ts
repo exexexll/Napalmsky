@@ -303,15 +303,71 @@ class DataStore {
     }
   }
 
-  // History operations
-  addHistory(userId: string, history: ChatHistory): void {
+  // History operations - with PostgreSQL support
+  async addHistory(userId: string, history: ChatHistory): Promise<void> {
     const userHistory = this.history.get(userId) || [];
     userHistory.push(history);
     this.history.set(userId, userHistory);
+    
+    // Also save to PostgreSQL
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO chat_history (session_id, user_id, partner_id, partner_name, room_id, started_at, duration, messages, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (session_id) DO UPDATE SET duration = EXCLUDED.duration, messages = EXCLUDED.messages`,
+          [
+            history.sessionId,
+            userId,
+            history.partnerId,
+            history.partnerName,
+            history.roomId,
+            new Date(history.startedAt),
+            history.duration,
+            JSON.stringify(history.messages),
+            new Date()
+          ]
+        );
+        console.log('[Store] Chat history saved to database for user:', userId.substring(0, 8));
+      } catch (error) {
+        console.error('[Store] Failed to save chat history to database:', error);
+      }
+    }
   }
 
-  getHistory(userId: string): ChatHistory[] {
-    return this.history.get(userId) || [];
+  async getHistory(userId: string): Promise<ChatHistory[]> {
+    // Check memory first
+    let history = this.history.get(userId) || [];
+    
+    // If database available, load from there
+    if (this.useDatabase) {
+      try {
+        const result = await query(
+          'SELECT * FROM chat_history WHERE user_id = $1 ORDER BY started_at DESC',
+          [userId]
+        );
+        
+        if (result.rows.length > 0) {
+          history = result.rows.map(row => ({
+            sessionId: row.session_id,
+            roomId: row.room_id,
+            partnerId: row.partner_id,
+            partnerName: row.partner_name,
+            startedAt: new Date(row.started_at).getTime(),
+            duration: row.duration,
+            messages: row.messages || [],
+          }));
+          
+          // Cache in memory
+          this.history.set(userId, history);
+          console.log('[Store] Loaded', history.length, 'chat history records from database for user:', userId.substring(0, 8));
+        }
+      } catch (error) {
+        console.error('[Store] Failed to load chat history from database:', error);
+      }
+    }
+    
+    return history;
   }
 
   // Timer operations (legacy - now using user.timerTotalSeconds)
@@ -398,14 +454,51 @@ class DataStore {
       : `${userId2}|${userId1}`;
   }
 
-  setCooldown(userId1: string, userId2: string, expiresAt: number): void {
+  async setCooldown(userId1: string, userId2: string, expiresAt: number): Promise<void> {
     const key = this.getCooldownKey(userId1, userId2);
     this.cooldowns.set(key, expiresAt);
+    
+    // Also save to PostgreSQL
+    if (this.useDatabase) {
+      try {
+        // Ensure consistent ordering for database constraint
+        const [user1, user2] = userId1 < userId2 ? [userId1, userId2] : [userId2, userId1];
+        
+        await query(
+          `INSERT INTO cooldowns (user_id_1, user_id_2, expires_at, created_at)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (user_id_1, user_id_2) DO UPDATE SET expires_at = EXCLUDED.expires_at`,
+          [user1, user2, new Date(expiresAt), new Date()]
+        );
+        console.log('[Store] Cooldown saved to database:', userId1.substring(0, 8), '↔', userId2.substring(0, 8));
+      } catch (error) {
+        console.error('[Store] Failed to save cooldown to database:', error);
+      }
+    }
   }
 
-  hasCooldown(userId1: string, userId2: string): boolean {
+  async hasCooldown(userId1: string, userId2: string): Promise<boolean> {
     const key = this.getCooldownKey(userId1, userId2);
-    const expires = this.cooldowns.get(key);
+    let expires = this.cooldowns.get(key);
+    
+    // If not in memory and database available, check there
+    if (!expires && this.useDatabase) {
+      try {
+        const [user1, user2] = userId1 < userId2 ? [userId1, userId2] : [userId2, userId1];
+        const result = await query(
+          'SELECT expires_at FROM cooldowns WHERE user_id_1 = $1 AND user_id_2 = $2 AND expires_at > NOW()',
+          [user1, user2]
+        );
+        
+        if (result.rows.length > 0) {
+          expires = new Date(result.rows[0].expires_at).getTime();
+          this.cooldowns.set(key, expires);
+        }
+      } catch (error) {
+        console.error('[Store] Failed to check cooldown in database:', error);
+      }
+    }
+    
     if (expires && expires > Date.now()) {
       const hoursLeft = Math.floor((expires - Date.now()) / (1000 * 60 * 60));
       const minutesLeft = Math.floor(((expires - Date.now()) % (1000 * 60 * 60)) / (1000 * 60));
@@ -415,6 +508,14 @@ class DataStore {
     if (expires) {
       console.log(`[Store] ✅ Cooldown expired, removing: ${userId1.substring(0, 8)} ↔ ${userId2.substring(0, 8)}`);
       this.cooldowns.delete(key);
+      
+      // Also delete from database
+      if (this.useDatabase) {
+        try {
+          const [user1, user2] = userId1 < userId2 ? [userId1, userId2] : [userId2, userId1];
+          await query('DELETE FROM cooldowns WHERE user_id_1 = $1 AND user_id_2 = $2', [user1, user2]);
+        } catch (error) {}
+      }
     }
     return false;
   }
@@ -467,27 +568,101 @@ class DataStore {
     return this.referralMappings.get(code);
   }
 
-  createReferralNotification(notification: ReferralNotification): void {
+  async createReferralNotification(notification: ReferralNotification): Promise<void> {
     const notifications = this.referralNotifications.get(notification.forUserId) || [];
     notifications.push(notification);
     this.referralNotifications.set(notification.forUserId, notifications);
     console.log(`[Referral] Notification created for ${notification.forUserId.substring(0, 8)}: ${notification.referredName} signed up`);
+    
+    // Also save to PostgreSQL
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO referral_notifications (id, for_user_id, referred_user_id, referred_name, introduced_by, introduced_by_name, timestamp, read)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            notification.id,
+            notification.forUserId,
+            notification.referredUserId,
+            notification.referredName,
+            notification.introducedBy,
+            notification.introducedByName,
+            new Date(notification.timestamp),
+            notification.read
+          ]
+        );
+        console.log('[Store] Referral notification saved to database');
+      } catch (error) {
+        console.error('[Store] Failed to save referral notification to database:', error);
+      }
+    }
   }
 
-  getReferralNotifications(userId: string): ReferralNotification[] {
-    return this.referralNotifications.get(userId) || [];
+  async getReferralNotifications(userId: string): Promise<ReferralNotification[]> {
+    let notifications = this.referralNotifications.get(userId) || [];
+    
+    // Load from database if available
+    if (this.useDatabase) {
+      try {
+        const result = await query(
+          'SELECT * FROM referral_notifications WHERE for_user_id = $1 ORDER BY timestamp DESC',
+          [userId]
+        );
+        
+        if (result.rows.length > 0) {
+          notifications = result.rows.map(row => ({
+            id: row.id,
+            forUserId: row.for_user_id,
+            referredUserId: row.referred_user_id,
+            referredName: row.referred_name,
+            introducedBy: row.introduced_by,
+            introducedByName: row.introduced_by_name,
+            timestamp: new Date(row.timestamp).getTime(),
+            read: row.read,
+          }));
+          
+          // Cache in memory
+          this.referralNotifications.set(userId, notifications);
+        }
+      } catch (error) {
+        console.error('[Store] Failed to load referral notifications from database:', error);
+      }
+    }
+    
+    return notifications;
   }
 
-  markNotificationRead(userId: string, notificationId: string): void {
+  async markNotificationRead(userId: string, notificationId: string): Promise<void> {
     const notifications = this.referralNotifications.get(userId) || [];
     const notification = notifications.find(n => n.id === notificationId);
     if (notification) {
       notification.read = true;
+      
+      // Also update in database
+      if (this.useDatabase) {
+        try {
+          await query(
+            'UPDATE referral_notifications SET read = TRUE WHERE id = $1',
+            [notificationId]
+          );
+        } catch (error) {
+          console.error('[Store] Failed to mark notification read in database:', error);
+        }
+      }
     }
   }
 
-  clearNotifications(userId: string): void {
+  async clearNotifications(userId: string): Promise<void> {
     this.referralNotifications.delete(userId);
+    
+    // Also delete from database
+    if (this.useDatabase) {
+      try {
+        await query('DELETE FROM referral_notifications WHERE for_user_id = $1', [userId]);
+      } catch (error) {
+        console.error('[Store] Failed to clear notifications from database:', error);
+      }
+    }
   }
 
   // ===== Report & Ban System =====

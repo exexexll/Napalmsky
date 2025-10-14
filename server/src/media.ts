@@ -203,7 +203,7 @@ router.post('/video', requireAuth, (req: any, res) => {
             read: false,
           };
           
-          store.createReferralNotification(notification);
+          await store.createReferralNotification(notification);
           console.log(`[Referral] Notification created after profile completion for ${targetUser.name}: ${user.name} is now ready`);
           
           // TODO: Send via Socket.io if target is online

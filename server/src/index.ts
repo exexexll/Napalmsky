@@ -573,7 +573,7 @@ io.on('connection', (socket) => {
 
     // Set 24h cooldown when user declines (prevents repeated unwanted invites)
     const cooldownUntil = Date.now() + (24 * 60 * 60 * 1000);
-    store.setCooldown(invite.fromUserId, invite.toUserId, cooldownUntil);
+    await store.setCooldown(invite.fromUserId, invite.toUserId, cooldownUntil);
     console.log(`[Cooldown] Set 24h cooldown after decline: ${invite.fromUserId.substring(0, 8)} ↔ ${invite.toUserId.substring(0, 8)}`);
 
     store.deleteInvite(inviteId);
@@ -607,7 +607,7 @@ io.on('connection', (socket) => {
 
     // Set 1h cooldown when caller cancels (prevents spam re-invites)
     const cooldownUntil = Date.now() + (60 * 60 * 1000); // 1 hour
-    store.setCooldown(currentUserId, toUserId, cooldownUntil);
+    await store.setCooldown(currentUserId, toUserId, cooldownUntil);
     console.log(`[Cooldown] Set 1h cooldown after rescind: ${currentUserId.substring(0, 8)} ↔ ${toUserId.substring(0, 8)}`);
 
     store.deleteInvite(invite.inviteId);
@@ -735,8 +735,8 @@ io.on('connection', (socket) => {
             messages: room.messages,
           };
 
-          store.addHistory(room.user1, history1);
-          store.addHistory(room.user2, history2);
+          await store.addHistory(room.user1, history1);
+          await store.addHistory(room.user2, history2);
 
           // Update timer totals and metrics (use actual duration)
           await store.addToTimer(room.user1, actualDuration);
@@ -771,7 +771,7 @@ io.on('connection', (socket) => {
 
         // Set 24h cooldown between these users
         const cooldownUntil = Date.now() + (24 * 60 * 60 * 1000);
-        store.setCooldown(room.user1, room.user2, cooldownUntil);
+        await store.setCooldown(room.user1, room.user2, cooldownUntil);
         console.log(`[Cooldown] Set 24h cooldown between ${room.user1} and ${room.user2}`);
       }
 
@@ -849,8 +849,8 @@ io.on('connection', (socket) => {
                 }],
               };
               
-              store.addHistory(room.user1, history1);
-              store.addHistory(room.user2, history2);
+              await store.addHistory(room.user1, history1);
+              await store.addHistory(room.user2, history2);
               
               // Update timer totals
               await store.addToTimer(room.user1, actualDuration);
@@ -858,7 +858,7 @@ io.on('connection', (socket) => {
               
               // Set cooldown even for disconnected calls (prevent abuse)
               const cooldownUntil = Date.now() + (24 * 60 * 60 * 1000);
-              store.setCooldown(room.user1, room.user2, cooldownUntil);
+              await store.setCooldown(room.user1, room.user2, cooldownUntil);
               
               console.log(`[Disconnect] Saved partial session (${actualDuration}s) and set cooldown`);
             }
