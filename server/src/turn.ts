@@ -78,11 +78,16 @@ router.get('/credentials', requireAuth, async (req: any, res) => {
 
     // Option 2: Twilio TURN (Fallback)
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+      console.log('[TURN] ✅ Twilio credentials detected, attempting to generate TURN credentials...');
       try {
         const twilio = require('twilio');
         const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
         
+        console.log('[TURN] Calling Twilio API to create token...');
         const token = await client.tokens.create({ ttl: 3600 });
+        
+        console.log('[TURN] ✅ Twilio token created successfully!');
+        console.log('[TURN] ICE servers received:', token.iceServers?.length || 0);
         
         return res.json({
           iceServers: [
@@ -93,10 +98,13 @@ router.get('/credentials', requireAuth, async (req: any, res) => {
           expiresAt: Date.now() + 3600000,
           provider: 'twilio'
         });
-      } catch (twilioError) {
-        console.error('[TURN] Twilio TURN error:', twilioError);
-        // Fall through to STUN-only
+      } catch (twilioError: any) {
+        console.error('[TURN] ❌ Twilio TURN error:', twilioError.message || twilioError);
+        console.error('[TURN] Error details:', JSON.stringify(twilioError, null, 2));
+        // Fall through to free public TURN
       }
+    } else {
+      console.log('[TURN] ⚠️ Twilio credentials NOT found in environment variables');
     }
 
     // Option 3: Free Public TURN Servers (Fallback - better than STUN-only)
