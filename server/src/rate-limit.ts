@@ -95,6 +95,7 @@ export const paymentLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable trust proxy validation warning
   skip: (req) => {
     // Skip rate limiting in development
     return process.env.NODE_ENV === 'development';
@@ -123,6 +124,7 @@ export const reportLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable trust proxy validation warning
   skip: (req) => {
     // Skip rate limiting in development
     return process.env.NODE_ENV === 'development';
