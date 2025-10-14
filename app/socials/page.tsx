@@ -32,18 +32,32 @@ export default function SocialsPage() {
       return;
     }
 
-    // Load saved socials from localStorage
-    const savedSocials = localStorage.getItem('napalmsky_socials');
-    if (savedSocials) {
-      try {
-        const parsed = JSON.parse(savedSocials);
-        setSocials(parsed);
-        updatePreviews(parsed);
-      } catch (e) {
-        console.error('Failed to parse socials');
-      }
-    }
-    setLoading(false);
+    // Fetch socials from server
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/user/me`, {
+      headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('[Socials] Loaded from server:', data.socials);
+        const serverSocials = data.socials || {};
+        setSocials(serverSocials);
+        updatePreviews(serverSocials);
+      })
+      .catch(err => {
+        console.error('[Socials] Failed to load from server:', err);
+        // Fallback to localStorage for backward compatibility
+        const savedSocials = localStorage.getItem('napalmsky_socials');
+        if (savedSocials) {
+          try {
+            const parsed = JSON.parse(savedSocials);
+            setSocials(parsed);
+            updatePreviews(parsed);
+          } catch (e) {
+            console.error('Failed to parse socials');
+          }
+        }
+      })
+      .finally(() => setLoading(false));
   }, [router]);
 
   const updatePreviews = (socialsObj: Record<string, string>) => {

@@ -19,10 +19,22 @@ export default function TrackerPage() {
       return;
     }
 
-    // Get cumulative timer from localStorage
-    const saved = localStorage.getItem('napalmsky_timer_total');
-    setTotalSeconds(saved ? parseInt(saved, 10) : 0);
-    setLoading(false);
+    // Fetch timer total from server
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/user/me`, {
+      headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('[Tracker] Timer total from server:', data.timerTotalSeconds);
+        setTotalSeconds(data.timerTotalSeconds || 0);
+      })
+      .catch(err => {
+        console.error('[Tracker] Failed to load from server:', err);
+        // Fallback to localStorage for backward compatibility
+        const saved = localStorage.getItem('napalmsky_timer_total');
+        setTotalSeconds(saved ? parseInt(saved, 10) : 0);
+      })
+      .finally(() => setLoading(false));
   }, [router]);
 
   if (loading) {
