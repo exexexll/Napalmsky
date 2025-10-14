@@ -838,13 +838,14 @@ io.on('connection', (socket) => {
   
   // Extracted disconnect handler for reuse
   async function handleFullDisconnect(userId: string | null) {
-    if (userId) {
-      activeSockets.delete(userId);
-      
-      // Find any active room and clean up properly
-      for (const [roomId, room] of activeRooms.entries()) {
-        if (room.user1 === currentUserId || room.user2 === currentUserId) {
-          const partnerId = room.user1 === currentUserId ? room.user2 : room.user1;
+    if (!userId) return; // Guard clause for null
+    
+    activeSockets.delete(userId);
+    
+    // Find any active room and clean up properly
+    for (const [roomId, room] of activeRooms.entries()) {
+      if (room.user1 === userId || room.user2 === userId) {
+        const partnerId = room.user1 === userId ? room.user2 : room.user1;
           const partnerUser = await store.getUser(partnerId);
           
           // Notify partner
@@ -920,23 +921,22 @@ io.on('connection', (socket) => {
           
           console.log(`[Disconnect] ✅ Cleaned up room ${roomId} and marked users available`);
         }
-      }
-      
-      // Mark user offline (they disconnected from socket)
-      store.updatePresence(currentUserId, { 
-        online: false, 
-        available: false 
-      });
-      
-      // Broadcast offline status
-      io.emit('presence:update', {
-        userId: currentUserId,
-        online: false,
-        available: false,
-      });
-      
-      console.log(`[Disconnect] ✅ User ${currentUserId.substring(0, 8)} marked offline`);
     }
+    
+    // Mark user offline (they disconnected from socket)
+    store.updatePresence(userId, { 
+      online: false, 
+      available: false 
+    });
+    
+    // Broadcast offline status
+    io.emit('presence:update', {
+      userId: userId,
+      online: false,
+      available: false,
+    });
+    
+    console.log(`[Disconnect] ✅ User ${userId.substring(0, 8)} marked offline`);
   }
 });
 
