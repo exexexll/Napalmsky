@@ -190,15 +190,15 @@ export default function RoomPage() {
         // Handle connection state
         pc.onconnectionstatechange = () => {
           console.log('[WebRTC] Connection state:', pc.connectionState);
+          setConnectionState(pc.connectionState);
           
           if (pc.connectionState === 'failed') {
             handleICEFailure();
           }
           
-          // Don't start timer here - let useEffect handle it to avoid race condition
+          // Timer will start via useEffect when all conditions met
           if (pc.connectionState === 'connected') {
-            console.log('[WebRTC] ✓ Connection established');
-            // Timer will start via useEffect when remoteTrackReceived is also true
+            console.log('[WebRTC] ✓ Connection established - timer will start when remote track received');
           }
         };
 
@@ -372,24 +372,45 @@ export default function RoomPage() {
   };
 
   // Start timer when BOTH conditions are met (fixes race condition)
+  // Uses state to trigger re-checks when connection state changes
+  const [connectionState, setConnectionState] = useState<string>('new');
+  
+  useEffect(() => {
+    const pc = peerConnectionRef.current;
+    if (pc) {
+      const handleConnectionStateChange = () => {
+        console.log('[WebRTC] Connection state changed to:', pc.connectionState);
+        setConnectionState(pc.connectionState);
+      };
+      
+      // Listen for connection state changes
+      pc.addEventListener('connectionstatechange', handleConnectionStateChange);
+      
+      return () => {
+        pc.removeEventListener('connectionstatechange', handleConnectionStateChange);
+      };
+    }
+  }, []); // Only set up once
+  
   useEffect(() => {
     const pc = peerConnectionRef.current;
     console.log('[Timer] Checking start conditions:', {
       hasPC: !!pc,
-      connectionState: pc?.connectionState,
+      connectionState: connectionState,
       remoteTrackReceived,
       timerStarted: timerStarted.current,
       agreedSeconds
     });
     
     if (pc && 
-        pc.connectionState === 'connected' && 
+        connectionState === 'connected' && 
         remoteTrackReceived &&
-        !timerStarted.current) {
+        !timerStarted.current &&
+        agreedSeconds > 0) {
       console.log('[Timer] All conditions met - starting timer from', agreedSeconds, 'seconds');
       startTimer();
     }
-  }, [remoteTrackReceived, agreedSeconds]); // Watch for remote track changes
+  }, [connectionState, remoteTrackReceived, agreedSeconds]); // Watch for ALL changes
 
   // ICE failure handler
   const handleICEFailure = () => {

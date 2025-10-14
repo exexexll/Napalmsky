@@ -32,16 +32,28 @@ export default function HistoryPage() {
       return;
     }
 
-    // Load history from localStorage for demo
-    const saved = localStorage.getItem('napalmsky_history');
-    if (saved) {
-      try {
-        setHistory(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse history');
-      }
-    }
-    setLoading(false);
+    // Fetch history from server
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/room/history`, {
+      headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        console.log('[History] Loaded from server:', data.history?.length || 0, 'chats');
+        setHistory(data.history || []);
+      })
+      .catch(err => {
+        console.error('[History] Failed to load from server:', err);
+        // Fallback to localStorage for backward compatibility
+        const saved = localStorage.getItem('napalmsky_history');
+        if (saved) {
+          try {
+            setHistory(JSON.parse(saved));
+          } catch (e) {
+            console.error('Failed to parse history');
+          }
+        }
+      })
+      .finally(() => setLoading(false));
   }, [router]);
 
   if (loading) {
