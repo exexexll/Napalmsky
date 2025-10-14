@@ -28,7 +28,7 @@ async function requireAuth(req: any, res: any, next: any) {
  * Get user's chat history
  */
 router.get('/history', requireAuth, async (req: any, res) => {
-  const history = store.getHistory(req.userId);
+  const history = await store.getHistory(req.userId);
   res.json({ history });
 });
 

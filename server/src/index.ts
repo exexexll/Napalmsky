@@ -259,12 +259,12 @@ io.on('connection', (socket) => {
       socket.emit('auth:success');
       
       // Check for any referral notifications for this user (someone was introduced to them)
-      const notifications = store.getReferralNotifications(session.userId);
-      const unreadNotifications = notifications.filter(n => !n.read);
+      const notifications = await store.getReferralNotifications(session.userId);
+      const unreadNotifications = notifications.filter((n: any) => !n.read);
       
       if (unreadNotifications.length > 0) {
         // Send all unread notifications
-        unreadNotifications.forEach(notif => {
+        unreadNotifications.forEach((notif: any) => {
           socket.emit('referral:notification', {
             message: `${notif.referredName} wants to connect with you!`,
             notification: notif,

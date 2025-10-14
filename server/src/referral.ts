@@ -119,8 +119,8 @@ router.get('/info/:code', (req: any, res) => {
  * Get referral notifications for the current user
  * These are people who were introduced to YOU
  */
-router.get('/notifications', requireAuth, (req: any, res) => {
-  const notifications = store.getReferralNotifications(req.userId);
+router.get('/notifications', requireAuth, async (req: any, res) => {
+  const notifications = await store.getReferralNotifications(req.userId);
   
   res.json({
     notifications,
@@ -132,8 +132,8 @@ router.get('/notifications', requireAuth, (req: any, res) => {
  * PUT /referral/notifications/:id/read
  * Mark a notification as read
  */
-router.put('/notifications/:id/read', requireAuth, (req: any, res) => {
-  store.markNotificationRead(req.userId, req.params.id);
+router.put('/notifications/:id/read', requireAuth, async (req: any, res) => {
+  await store.markNotificationRead(req.userId, req.params.id);
   
   res.json({ success: true });
 });
@@ -222,7 +222,7 @@ router.post('/direct-match', requireAuth, async (req: any, res) => {
  * Get list of users who were introduced to me
  */
 router.get('/my-introductions', requireAuth, async (req: any, res) => {
-  const notifications = store.getReferralNotifications(req.userId);
+  const notifications = await store.getReferralNotifications(req.userId);
   
   // Get full user details for each introduction
   const introductions = await Promise.all(
