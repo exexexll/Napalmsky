@@ -90,7 +90,18 @@ export default function LoginPage() {
 
             {error && (
               <div className="rounded-xl bg-red-500/10 p-4 text-sm text-red-400">
-                {error}
+                <p className="font-medium mb-2">{error}</p>
+                {error.includes('Invalid credentials') && (
+                  <p className="text-xs text-red-300/80 mt-2">
+                    Note: Login is only for permanent accounts. If you signed up as a guest, you don&apos;t have a password yet. 
+                    Sign up or link your account in Settings after signing in.
+                  </p>
+                )}
+                {error.includes('Too many') && (
+                  <p className="text-xs text-red-300/80 mt-2">
+                    Your IP has been temporarily blocked due to too many failed login attempts. Please wait 15 minutes or try signing up as a new guest instead.
+                  </p>
+                )}
               </div>
             )}
 

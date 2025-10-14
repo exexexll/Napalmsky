@@ -239,8 +239,15 @@ router.post('/login', async (req: any, res) => {
   }
 
   const user = await store.getUserByEmail(email);
-  if (!user || user.accountType !== 'permanent') {
-    return res.status(401).json({ error: 'Invalid credentials' });
+  
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid credentials - No account found with this email' });
+  }
+  
+  if (user.accountType !== 'permanent') {
+    return res.status(401).json({ 
+      error: 'This account is not permanent. Please sign up as a guest first, then link your email and password in Settings.' 
+    });
   }
 
   // ✅ Secure password comparison with bcrypt
