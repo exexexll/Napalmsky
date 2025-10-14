@@ -2,8 +2,20 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import { store } from './store';
+import { v2 as cloudinary } from 'cloudinary';
+import fs from 'fs';
 
 const router = express.Router();
+
+// Configure Cloudinary (uses environment variables)
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Check if Cloudinary is configured
+const useCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY);
 
 /**
  * Multer configuration for file uploads
@@ -85,24 +97,42 @@ router.post('/selfie', requireAuth, (req: any, res) => {
     }
 
     try {
-      // Use dynamic API base from environment or request origin
-      const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
-      const selfieUrl = `${apiBase}/uploads/${req.file.filename}`;
+      let selfieUrl: string;
+
+      if (useCloudinary) {
+        // Upload to Cloudinary
+        console.log('[Upload] Uploading selfie to Cloudinary...');
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'napalmsky/selfies',
+          resource_type: 'image',
+          format: 'jpg',
+          transformation: [
+            { width: 800, height: 800, crop: 'limit' },
+            { quality: 'auto:good' }
+          ]
+        });
+        selfieUrl = result.secure_url;
+        
+        // Delete local temp file
+        fs.unlinkSync(req.file.path);
+        console.log(`[Upload] ✅ Selfie uploaded to Cloudinary for user ${req.userId.substring(0, 8)}`);
+      } else {
+        // Fallback to local storage (for development)
+        const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
+        selfieUrl = `${apiBase}/uploads/${req.file.filename}`;
+        console.log(`[Upload] ⚠️  Using local storage (Cloudinary not configured)`);
+      }
+
       await store.updateUser(req.userId, { selfieUrl });
-      
-      console.log(`[Upload] ✅ Selfie uploaded successfully for user ${req.userId.substring(0, 8)}`);
       res.json({ selfieUrl });
     } catch (error: any) {
-      // Rollback: delete uploaded file if database update fails
-      const fs = require('fs');
-      fs.unlink(req.file.path, (unlinkErr: any) => {
-        if (unlinkErr) {
-          console.error('[Upload] Failed to delete orphaned file:', unlinkErr);
-        }
-      });
+      // Rollback: delete uploaded file if it exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
       
-      console.error('[Upload] Database update failed:', error);
-      res.status(500).json({ error: 'Failed to save upload' });
+      console.error('[Upload] Upload failed:', error);
+      res.status(500).json({ error: 'Failed to upload image' });
     }
   });
 });
@@ -126,24 +156,42 @@ router.post('/video', requireAuth, (req: any, res) => {
     }
 
     try {
-      // Use dynamic API base from environment or request origin
-      const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
-      const videoUrl = `${apiBase}/uploads/${req.file.filename}`;
+      let videoUrl: string;
+
+      if (useCloudinary) {
+        // Upload to Cloudinary
+        console.log('[Upload] Uploading video to Cloudinary...');
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'napalmsky/videos',
+          resource_type: 'video',
+          format: 'mp4',
+          transformation: [
+            { width: 1280, height: 720, crop: 'limit' },
+            { quality: 'auto:good' }
+          ]
+        });
+        videoUrl = result.secure_url;
+        
+        // Delete local temp file
+        fs.unlinkSync(req.file.path);
+        console.log(`[Upload] ✅ Video uploaded to Cloudinary for user ${req.userId.substring(0, 8)}`);
+      } else {
+        // Fallback to local storage (for development)
+        const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
+        videoUrl = `${apiBase}/uploads/${req.file.filename}`;
+        console.log(`[Upload] ⚠️  Using local storage (Cloudinary not configured)`);
+      }
+
       await store.updateUser(req.userId, { videoUrl });
-      
-      console.log(`[Upload] ✅ Video uploaded successfully for user ${req.userId.substring(0, 8)}`);
       res.json({ videoUrl });
     } catch (error: any) {
-      // Rollback: delete uploaded file if database update fails
-      const fs = require('fs');
-      fs.unlink(req.file.path, (unlinkErr: any) => {
-        if (unlinkErr) {
-          console.error('[Upload] Failed to delete orphaned file:', unlinkErr);
-        }
-      });
+      // Rollback: delete uploaded file if it exists
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
       
-      console.error('[Upload] Database update failed:', error);
-      res.status(500).json({ error: 'Failed to save upload' });
+      console.error('[Upload] Upload failed:', error);
+      res.status(500).json({ error: 'Failed to upload video' });
     }
   });
 });

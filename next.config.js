@@ -15,6 +15,11 @@ const nextConfig = {
         hostname: 'napalmsky-production.up.railway.app',
         pathname: '/uploads/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
     ],
   },
 }
