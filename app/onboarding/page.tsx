@@ -48,6 +48,18 @@ function OnboardingPageContent() {
     const ref = searchParams.get('ref');
     const invite = searchParams.get('inviteCode');
     
+    // IMPORTANT: Extract invite code FIRST before any session checks
+    // This ensures QR code links work even if user has an existing session
+    if (invite) {
+      setInviteCode(invite);
+      console.log('[Onboarding] Invite code from URL:', invite);
+    }
+    
+    if (ref) {
+      setReferralCode(ref);
+      console.log('[Onboarding] Referral code from URL:', ref);
+    }
+    
     // Check if user is already registered (has session)
     const existingSession = getSession();
     
@@ -100,19 +112,10 @@ function OnboardingPageContent() {
     }
     
     // User is NOT registered - proceed with signup flow
+    // (inviteCode and referralCode already extracted above)
     
-    // Check for invite code (QR code bypass)
-    if (invite) {
-      setInviteCode(invite);
-      console.log('[Onboarding] NEW user with invite code:', invite);
-    }
-    
-    // Check for referral code
+    // Fetch referral info if needed
     if (ref) {
-      setReferralCode(ref);
-      console.log('[Onboarding] NEW user with referral code:', ref);
-      
-      // Fetch who you're being introduced to
       getReferralInfo(ref)
         .then(data => {
           setReferrerName(data.targetUserName); // The person you're being introduced to

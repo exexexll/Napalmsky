@@ -426,7 +426,10 @@ router.get('/qr/:code', async (req: any, res) => {
     const QRCode = await import('qrcode');
     
     // Generate QR code containing the signup URL with code
-    const signupUrl = `${req.protocol}://${req.get('host').replace(':3001', ':3000')}/onboarding?inviteCode=${code}`;
+    // Use FRONTEND_URL if set, otherwise derive from request
+    const frontendUrl = process.env.FRONTEND_URL || 
+                        (req.headers.origin || `${req.protocol}://${req.get('host')}`).replace(':3001', ':3000');
+    const signupUrl = `${frontendUrl}/onboarding?inviteCode=${code}`;
     console.log(`[QR] Generating QR for URL: ${signupUrl}`);
     
     const qrCodeBuffer = await QRCode.toBuffer(signupUrl, {
