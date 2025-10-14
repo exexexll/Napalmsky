@@ -458,7 +458,7 @@ io.on('connection', (socket) => {
 
     // Notify callee
     if (targetSocket) {
-      io.to(targetSocket).emit('call:notify', {
+      const notificationPayload = {
         inviteId,
         fromUser: {
           userId: fromUser?.userId,
@@ -469,12 +469,23 @@ io.on('connection', (socket) => {
         },
         requestedSeconds,
         ttlMs: 20000, // Changed to 20 seconds
-      });
-
-      console.log(`[Invite] ${currentUserId} → ${toUserId}, invite: ${inviteId}`);
+      };
+      
+      io.to(targetSocket).emit('call:notify', notificationPayload);
+      console.log(`[Invite] ${currentUserId.substring(0, 8)} → ${toUserId.substring(0, 8)}, invite: ${inviteId}`);
+      console.log(`[Invite] ✅ Notification emitted to socket: ${targetSocket}`);
 
       // Note: No automatic timeout - caller must manually cancel (rescind)
       // This gives caller full control over when to give up
+    } else {
+      console.error(`[Invite] ❌ Target socket not found for user ${toUserId.substring(0, 8)}`);
+      console.error(`[Invite] Target might be offline or disconnected`);
+      
+      // Send decline back to caller
+      socket.emit('call:declined', {
+        inviteId,
+        reason: 'offline'
+      });
     }
   });
 
