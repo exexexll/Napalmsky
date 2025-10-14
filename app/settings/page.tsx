@@ -202,7 +202,7 @@ export default function SettingsPage() {
                 {/* Actions - Minimal */}
                 <button
                   onClick={() => {
-                    const link = `http://localhost:3000/onboarding?inviteCode=${paymentStatus.myInviteCode}`;
+                    const link = `${window.location.origin}/onboarding?inviteCode=${paymentStatus.myInviteCode}`;
                     navigator.clipboard.writeText(link);
                   }}
                   className="focus-ring w-full rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-[#eaeaf0] transition-all hover:bg-white/20"

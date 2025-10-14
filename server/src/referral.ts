@@ -86,14 +86,12 @@ router.post('/generate', requireAuth, async (req: any, res) => {
     createdAt: Date.now(),
   });
   
-  // Generate full URL
-  const referralUrl = `${req.protocol}://${req.get('host')}/onboarding?ref=${code}`;
-  
+  // Return only the code - let frontend build full URL with window.location.origin
+  // This ensures URLs always use the correct domain (Vercel, not Railway)
   console.log(`[Referral] ${creatorUser.name} created introduction link for ${targetUser.name}: ${code}`);
 
   res.json({
     referralCode: code,
-    referralUrl,
     targetUserName: targetUser.name,
   });
 });
