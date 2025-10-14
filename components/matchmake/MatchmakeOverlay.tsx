@@ -234,12 +234,18 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
       loadInitialQueue();
     };
 
+    // Remove any existing auth:success listeners first (prevent duplicates)
+    socket.off('auth:success');
+    
     // Listen for auth success
     socket.on('auth:success', handleAuth);
     
     // If already authenticated (reconnection), join immediately
     if (socket.connected) {
+      console.log('[Matchmake] Socket already connected, emitting auth event');
       socket.emit('auth', { sessionToken: session.sessionToken });
+    } else {
+      console.log('[Matchmake] Socket connecting, will auth after connect event');
     }
 
     // Auto-check for new users every 15 seconds (reduced from 5s for better scalability)
