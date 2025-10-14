@@ -438,7 +438,7 @@ io.on('connection', (socket) => {
       });
     }
 
-    if (store.hasCooldown(currentUserId, toUserId)) {
+    if (await store.hasCooldown(currentUserId, toUserId)) {
       return socket.emit('call:declined', {
         inviteId,
         reason: 'cooldown',
