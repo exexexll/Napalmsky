@@ -342,11 +342,44 @@ export default function RoomPage() {
         if (isInitiator) {
           console.log('[WebRTC] Creating offer (initiator role)');
           
-          // Safari: Wait for ICE gathering to complete before sending offer
-          if (isSafari) {
-            console.log('[WebRTC] Safari detected - waiting 2s for ICE gathering...');
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          }
+          // Wait for at least one relay (TURN) candidate before sending offer
+          // This is CRITICAL for cross-network calls (5G + WiFi, university networks)
+          console.log('[WebRTC] Waiting for ICE candidates (especially relay candidates)...');
+          
+          const waitForRelayCandidates = new Promise<void>((resolve) => {
+            let hasRelay = false;
+            let candidateCount = 0;
+            
+            const checkCandidate = (event: RTCPeerConnectionIceEvent) => {
+              if (event.candidate) {
+                candidateCount++;
+                console.log(`[WebRTC] ICE candidate #${candidateCount}:`, event.candidate.type, event.candidate.protocol);
+                
+                if (event.candidate.type === 'relay') {
+                  hasRelay = true;
+                  console.log('[WebRTC] ✅ TURN relay candidate found!');
+                }
+              } else {
+                // null candidate = gathering complete
+                console.log('[WebRTC] ICE gathering complete, total candidates:', candidateCount);
+                pc.removeEventListener('icecandidate', checkCandidate);
+                resolve();
+              }
+            };
+            
+            pc.addEventListener('icecandidate', checkCandidate);
+            
+            // Timeout: Wait longer for Safari mobile
+            const gatherTimeout = (isSafari && isMobile) ? 6000 : 4000;
+            setTimeout(() => {
+              console.log(`[WebRTC] ICE gather timeout after ${gatherTimeout}ms, proceeding with ${candidateCount} candidates`);
+              console.log(`[WebRTC] Has relay candidate: ${hasRelay}`);
+              pc.removeEventListener('icecandidate', checkCandidate);
+              resolve();
+            }, gatherTimeout);
+          });
+          
+          await waitForRelayCandidates;
           
           // Create offer with Safari-compatible options
           const offerOptions: RTCOfferOptions = {
@@ -354,14 +387,15 @@ export default function RoomPage() {
             offerToReceiveVideo: true,
           };
           
+          console.log('[WebRTC] Creating offer...');
           const offer = await pc.createOffer(offerOptions);
           await pc.setLocalDescription(offer);
           
-          console.log('[WebRTC] Offer created, local description set');
+          console.log('[WebRTC] Offer created with SDP length:', offer.sdp?.length);
           console.log('[WebRTC] Sending offer to peer...');
           
           socket.emit('rtc:offer', { roomId, offer });
-          console.log('[WebRTC] Offer sent via socket');
+          console.log('[WebRTC] ✅ Offer sent via socket');
         } else {
           console.log('[WebRTC] Waiting for offer (responder role)');
         }

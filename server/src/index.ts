@@ -806,10 +806,40 @@ io.on('connection', (socket) => {
   });
 
   // Disconnect
-  socket.on('disconnect', async () => {
-    console.log(`Client disconnected: ${socket.id}`);
-    if (currentUserId) {
-      activeSockets.delete(currentUserId);
+  socket.on('disconnect', async (reason) => {
+    console.log(`Client disconnected: ${socket.id}, reason: ${reason}`);
+    
+    // Don't immediately mark offline for temporary disconnects
+    const temporaryReasons = ['transport close', 'ping timeout', 'transport error'];
+    const isTemporary = temporaryReasons.includes(reason);
+    
+    if (isTemporary) {
+      console.log(`[Disconnect] Temporary disconnect (${reason}), waiting 5s for reconnection...`);
+      
+      // Wait 5 seconds before cleaning up
+      setTimeout(async () => {
+        // Check if user reconnected
+        const stillHasSocket = activeSockets.get(currentUserId);
+        if (!stillHasSocket) {
+          console.log(`[Disconnect] User ${currentUserId?.substring(0, 8)} did not reconnect, cleaning up...`);
+          await handleFullDisconnect(currentUserId);
+        } else {
+          console.log(`[Disconnect] User ${currentUserId?.substring(0, 8)} reconnected successfully!`);
+        }
+      }, 5000);
+      
+      return; // Don't clean up immediately
+    }
+    
+    // For intentional disconnects (client close, server shutdown), clean up immediately
+    console.log(`[Disconnect] Permanent disconnect (${reason}), cleaning up immediately...`);
+    await handleFullDisconnect(currentUserId);
+  });
+  
+  // Extracted disconnect handler for reuse
+  async function handleFullDisconnect(userId: string | null) {
+    if (userId) {
+      activeSockets.delete(userId);
       
       // Find any active room and clean up properly
       for (const [roomId, room] of activeRooms.entries()) {
