@@ -98,7 +98,7 @@ router.post('/user', requireAuth, async (req: any, res) => {
     roomId,
   };
 
-  store.createReport(report);
+  await store.createReport(report);
 
   // Check if user should be auto-banned (4+ unique reports)
   const reportCount = store.getReportCount(reportedUserId);
@@ -120,7 +120,7 @@ router.post('/user', requireAuth, async (req: any, res) => {
       ipAddresses: userIps,
     };
 
-    store.createBanRecord(banRecord);
+    await store.createBanRecord(banRecord);
     console.log(`[Ban] 🚫 User ${reportedUser.name} auto-banned after ${reportCount} reports`);
 
     return res.json({
