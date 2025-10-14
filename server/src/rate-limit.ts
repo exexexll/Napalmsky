@@ -6,16 +6,16 @@ import rateLimit from 'express-rate-limit';
  */
 
 /**
- * Auth endpoints: 5 attempts per 15 minutes per IP
+ * Auth endpoints: 6 attempts per 10 minutes per IP
  * Protects against password brute force attacks
  */
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window per IP
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 6, // 6 requests per window per IP
   message: {
     error: 'Too many login attempts',
-    message: 'Please try again in 15 minutes',
-    retryAfter: 15 * 60 // seconds
+    message: 'Please try again in 10 minutes',
+    retryAfter: 10 * 60 // seconds
   },
   standardHeaders: true, // Return rate limit info in RateLimit-* headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
@@ -25,8 +25,8 @@ export const authLimiter = rateLimit({
     console.warn(`[RateLimit] Auth limit exceeded for IP ${req.ip}`);
     res.status(429).json({
       error: 'Too many login attempts',
-      message: 'Please try again in 15 minutes',
-      retryAfter: 15 * 60
+      message: 'Please try again in 10 minutes',
+      retryAfter: 10 * 60
     });
   }
 });

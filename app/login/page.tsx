@@ -99,7 +99,7 @@ export default function LoginPage() {
                 )}
                 {error.includes('Too many') && (
                   <p className="text-xs text-red-300/80 mt-2">
-                    Your IP has been temporarily blocked due to too many failed login attempts. Please wait 15 minutes or try signing up as a new guest instead.
+                    Your IP has been temporarily blocked due to too many failed login attempts. Please wait 10 minutes or try signing up as a new guest instead.
                   </p>
                 )}
               </div>
