@@ -932,12 +932,21 @@ class DataStore {
     
     if (this.useDatabase) {
       try {
+        // First ensure the user exists in the database (if not admin code)
+        if (inviteCode.createdBy && inviteCode.type !== 'admin') {
+          const userExists = await this.getUser(inviteCode.createdBy);
+          if (!userExists) {
+            console.warn(`[InviteCode] User ${inviteCode.createdBy.substring(0, 8)} not in database - code saved to memory only`);
+            return; // Don't try to insert into PostgreSQL
+          }
+        }
+        
         await query(
           `INSERT INTO invite_codes (code, created_by, created_by_name, created_at, type, max_uses, uses_remaining, used_by, is_active)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             inviteCode.code,
-            inviteCode.createdBy,
+            inviteCode.createdBy || null, // Allow NULL for users not in DB
             inviteCode.createdByName,
             new Date(inviteCode.createdAt),
             inviteCode.type,
@@ -947,8 +956,10 @@ class DataStore {
             inviteCode.isActive
           ]
         );
+        console.log(`[InviteCode] Saved to database: ${inviteCode.code}`);
       } catch (error) {
         console.error('[Store] Failed to create invite code in database:', error);
+        console.warn('[InviteCode] Code will work in memory-only mode');
       }
     }
   }
