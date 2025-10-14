@@ -69,71 +69,6 @@ export default function ManifestoPage() {
                 animate="visible"
                 className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
               >
-                This is not just a dating app.
-              </motion.p>
-
-              <motion.p
-                custom={2}
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
-              >
-                It&apos;s my way of saying &quot;fuck it&quot; after living my whole life in trepidations
-              </motion.p>
-
-              <motion.p
-                custom={3}
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
-              >
-                I said a lot of no&apos;s in my life.
-              </motion.p>
-
-              <motion.div
-                custom={4}
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                className="space-y-2 font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
-              >
-                <p>No to school.</p>
-                <p>No to extra algebra practice before the final</p>
-                <p>No to a getaway trip with my best pals</p>
-                <p>No to midnight poker game and summer shenanigans.</p>
-              </motion.div>
-
-              <motion.p
-                custom={5}
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
-              >
-                But the biggest no was turning down a girl who asked me out on one Tuesday afternoon. The self-loathing, 
-                cynical kid I was thought she was too good to be true. Slowly and painfully, I realized I might just 
-                missed out on what could have been the story of my life because she was who i was looking for... By then, it was too late. 
-              </motion.p>
-
-              <motion.p
-                custom={6}
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
-              >
-                Guess we don&apos;t live in a world where we always know what we want, do we?
-              </motion.p>
-
-              <motion.p
-                custom={7}
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
-              >
                 It is true:
                 <br />
                 <span className="italic">&quot;Most days of the year are unremarkable. They begin and they end with no lasting 
@@ -143,7 +78,7 @@ export default function ManifestoPage() {
               </motion.p>
 
               <motion.p
-                custom={8}
+                custom={2}
                 variants={fadeInVariants}
                 initial="hidden"
                 animate="visible"
@@ -151,12 +86,11 @@ export default function ManifestoPage() {
               >
                 But:
                 <br />
-                Somedays do. They appear in no particular order, and it&apos;s not like there&apos;s a sign written all over 
-                it, but those are the days that make you feel the sun finally shine through.
+                Somedays do. They appear in no particular order, and it&apos;s not like there are signs written all over it, but those are the days that make you feel the sun finally shine through.
               </motion.p>
 
               <motion.p
-                custom={9}
+                custom={3}
                 variants={fadeInVariants}
                 initial="hidden"
                 animate="visible"
@@ -168,36 +102,33 @@ export default function ManifestoPage() {
               </motion.p>
 
               <motion.p
-                custom={10}
+                custom={4}
                 variants={fadeInVariants}
                 initial="hidden"
                 animate="visible"
                 className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
               >
-                This is a place for the vagabonds and the hopeless romantic —
+                This is a sanctuary for wanderers and seekers of true romance —
                 <br />
-                a safe harbor to set down your baggage and quiet your anxiety.
+                a refuge where burdens may be gently released and the spirit finds stillness.
                 <br />
-                A space to fall in love with the idea of love again.
+                A space to awaken the heart and fall in love with love in its purest form.
                 <br />
-                A place where everyone gets a fair shot: no algorithms, no labels — just serendipity.
+                A place where every soul meets on equal ground: unbound by algorithms or labels — guided only by serendipity and the quiet pull of destiny.
               </motion.p>
 
               <motion.p
-                custom={11}
+                custom={5}
                 variants={fadeInVariants}
                 initial="hidden"
                 animate="visible"
                 className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
               >
-                Please don&apos;t waste your life any more than I did. give miracle a CHANCE! 
-                Even if you end up finding nobody, do cherish the moments, the laughter, and the time you told others how you really felt. Forget the rules, 
-                rationale or that stupid mental checklist everyone swears by. Live in the present. Carpe Diem! Hurry up and 
-                pick up your next call, because you only get one lifetime to find the person you love.
+                Like everything that has happened in life, nobody is promised success. Even if you end up finding nobody, do cherish the moments, the laughter, and the time you told others how you really felt on this platform. Forget the rules, rationale or that stupid mental checklist everyone swears by. Live in the present. Carpe Diem! Hurry up and pick up your next call, because you only get one lifetime to find the person you love.
               </motion.p>
 
               <motion.p
-                custom={12}
+                custom={6}
                 variants={fadeInVariants}
                 initial="hidden"
                 animate="visible"
@@ -207,7 +138,7 @@ export default function ManifestoPage() {
               </motion.p>
 
               <motion.p
-                custom={13}
+                custom={7}
                 variants={fadeInVariants}
                 initial="hidden"
                 animate="visible"

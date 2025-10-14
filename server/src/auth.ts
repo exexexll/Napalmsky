@@ -142,37 +142,9 @@ router.post('/guest', async (req: any, res) => {
   // Track IP for this user
   store.addUserIp(userId, ip);
 
-  // If this signup was via referral, notify the TARGET user (person being introduced to)
-  if (referralInfo) {
-    // Create notification for the TARGET user
-    const notification: import('./types').ReferralNotification = {
-      id: uuidv4(),
-      forUserId: referralInfo.targetUserId, // The person on the card
-      referredUserId: userId, // The new signup
-      referredName: user.name,
-      introducedBy: referralInfo.createdByUserId,
-      introducedByName: referralInfo.createdByName,
-      timestamp: Date.now(),
-      read: false,
-    };
-    store.createReferralNotification(notification);
-    
-    console.log(`[Referral] Notification created for ${referralInfo.targetName}: ${user.name} was introduced by ${referralInfo.createdByName}`);
-    
-    // If target user is online, send notification immediately via Socket.io
-    if (io && activeSockets) {
-      const targetSocketId = activeSockets.get(referralInfo.targetUserId);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('referral:notification', {
-          message: `${user.name} wants to connect with you!`,
-          notification,
-        });
-        console.log(`[Referral] ✅ Sent instant notification to ${referralInfo.targetName} (online)`);
-      } else {
-        console.log(`[Referral] Target user ${referralInfo.targetName} is offline - notification saved for later`);
-      }
-    }
-  }
+  // NOTE: Referral notification is NOT sent here anymore!
+  // It will be sent when user completes their profile (uploads video)
+  // This prevents showing "offline" status when they haven't finished onboarding yet
 
   // Check if target is online for immediate matching
   let targetOnline = false;
