@@ -99,19 +99,34 @@ router.get('/credentials', requireAuth, async (req: any, res) => {
       }
     }
 
-    // Option 3: STUN-only (Fallback - ~70% success rate)
-    console.warn('[TURN] No TURN server configured, using STUN only (~70% connection success)');
+    // Option 3: Free Public TURN Servers (Fallback - better than STUN-only)
+    console.warn('[TURN] No premium TURN configured, using free public TURN servers');
     return res.json({
       iceServers: [
+        // STUN servers (NAT discovery)
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-        { urls: 'stun:stun4.l.google.com:19302' }
+        // Free public TURN servers (relay for NAT traversal)
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
       ],
       expiresAt: Date.now() + 3600000,
-      provider: 'stun-only',
-      warning: 'TURN not configured - connection success rate may be lower'
+      provider: 'free-public-turn',
+      warning: 'Using free public TURN - for production, configure Cloudflare TURN'
     });
 
   } catch (error) {

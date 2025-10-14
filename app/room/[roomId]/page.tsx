@@ -155,12 +155,24 @@ export default function RoomPage() {
         const config: RTCConfiguration = {
           iceServers,
           iceCandidatePoolSize: 10,
+          iceTransportPolicy: 'all', // Try all methods (STUN + TURN)
+          bundlePolicy: 'max-bundle',
+          rtcpMuxPolicy: 'require',
         };
 
         const pc = new RTCPeerConnection(config);
         peerConnectionRef.current = pc;
 
-        console.log('[WebRTC] PeerConnection created');
+        console.log('[WebRTC] PeerConnection created with', iceServers.length, 'ICE servers');
+        
+        // Add connection timeout (30 seconds)
+        const connectionTimeout = setTimeout(() => {
+          if (pc.connectionState !== 'connected') {
+            console.error('[WebRTC] Connection timeout after 30 seconds');
+            setPermissionError('Connection timeout - please check your internet connection and try again');
+            setShowPermissionSheet(true);
+          }
+        }, 30000);
 
         // Attach local tracks
         stream.getTracks().forEach(track => {
@@ -193,12 +205,19 @@ export default function RoomPage() {
           setConnectionState(pc.connectionState);
           
           if (pc.connectionState === 'failed') {
+            clearTimeout(connectionTimeout);
             handleICEFailure();
           }
           
           // Timer will start via useEffect when all conditions met
           if (pc.connectionState === 'connected') {
+            clearTimeout(connectionTimeout); // Clear timeout on success
             console.log('[WebRTC] ✓ Connection established - timer will start when remote track received');
+          }
+          
+          if (pc.connectionState === 'disconnected') {
+            console.warn('[WebRTC] Connection disconnected');
+            // Don't immediately fail - might reconnect
           }
         };
 
