@@ -101,18 +101,27 @@ export default function RoomPage() {
       try {
         // 1. Request user media
         console.log('[Media] Requesting getUserMedia...');
+        
+        // Detect Safari for specific constraints
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        console.log('[Media] Browser detection:', { isSafari, isMobile });
+        
+        // Safari-optimized media constraints
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
-            width: { ideal: 1280 }, 
-            height: { ideal: 720 },
-            // Allow multiple instances to share camera (for same-computer testing)
-            deviceId: undefined
+            width: { ideal: isMobile ? 640 : 1280 }, 
+            height: { ideal: isMobile ? 480 : 720 },
+            facingMode: isMobile ? 'user' : undefined, // Front camera on mobile
+            frameRate: { ideal: isMobile ? 24 : 30 }, // Lower framerate for mobile
           },
           audio: {
-            // Suppress echo cancellation issues when testing on same computer
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            // Safari-specific: Lower sample rate for mobile
+            ...(isSafari && isMobile && { sampleRate: 16000 })
           }
         });
 
@@ -151,28 +160,39 @@ export default function RoomPage() {
           console.warn('[WebRTC] Falling back to STUN only (~70% connection success)');
         }
 
-        // 3. Create RTCPeerConnection with secure credentials
+        // 3. Create RTCPeerConnection with Safari-optimized config
         const config: RTCConfiguration = {
           iceServers,
           iceCandidatePoolSize: 10,
-          iceTransportPolicy: 'all', // Try all methods (STUN + TURN)
+          // Safari on mobile: Force TURN relay for better stability
+          iceTransportPolicy: (isSafari && isMobile) ? 'relay' : 'all',
           bundlePolicy: 'max-bundle',
           rtcpMuxPolicy: 'require',
+          // Safari-specific: Prefer H.264 codec
+          ...(isSafari && { 
+            sdpSemantics: 'unified-plan',
+          })
         };
 
         const pc = new RTCPeerConnection(config);
         peerConnectionRef.current = pc;
 
         console.log('[WebRTC] PeerConnection created with', iceServers.length, 'ICE servers');
+        console.log('[WebRTC] Config:', { 
+          iceTransportPolicy: config.iceTransportPolicy,
+          isSafari,
+          isMobile 
+        });
         
-        // Add connection timeout (30 seconds)
+        // Safari on mobile needs longer timeout (45s vs 30s)
+        const timeoutDuration = (isSafari && isMobile) ? 45000 : 30000;
         const connectionTimeout = setTimeout(() => {
           if (pc.connectionState !== 'connected') {
-            console.error('[WebRTC] Connection timeout after 30 seconds');
-            setPermissionError('Connection timeout - please check your internet connection and try again');
+            console.error(`[WebRTC] Connection timeout after ${timeoutDuration/1000} seconds`);
+            setPermissionError(`Connection timeout - ${isSafari ? 'Safari on mobile may need both users to keep app in foreground' : 'please check your internet connection and try again'}`);
             setShowPermissionSheet(true);
           }
-        }, 30000);
+        }, timeoutDuration);
 
         // Attach local tracks
         stream.getTracks().forEach(track => {
@@ -321,10 +341,27 @@ export default function RoomPage() {
         // Create offer (initiator role only)
         if (isInitiator) {
           console.log('[WebRTC] Creating offer (initiator role)');
-          const offer = await pc.createOffer();
+          
+          // Safari: Wait for ICE gathering to complete before sending offer
+          if (isSafari) {
+            console.log('[WebRTC] Safari detected - waiting 2s for ICE gathering...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+          
+          // Create offer with Safari-compatible options
+          const offerOptions: RTCOfferOptions = {
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true,
+          };
+          
+          const offer = await pc.createOffer(offerOptions);
           await pc.setLocalDescription(offer);
+          
+          console.log('[WebRTC] Offer created, local description set');
+          console.log('[WebRTC] Sending offer to peer...');
+          
           socket.emit('rtc:offer', { roomId, offer });
-          console.log('[WebRTC] Offer sent');
+          console.log('[WebRTC] Offer sent via socket');
         } else {
           console.log('[WebRTC] Waiting for offer (responder role)');
         }
