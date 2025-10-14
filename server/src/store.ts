@@ -684,8 +684,8 @@ class DataStore {
     return this.ipBans.get(ipAddress) || null;
   }
 
-  // Ban an IP address
-  banIp(ipAddress: string, userId: string, reason: string): void {
+  // Ban an IP address - with PostgreSQL support
+  async banIp(ipAddress: string, userId: string, reason: string): Promise<void> {
     const ipBan: IPBan = {
       ipAddress,
       bannedAt: Date.now(),
@@ -694,10 +694,25 @@ class DataStore {
     };
     this.ipBans.set(ipAddress, ipBan);
     console.log(`[Ban] IP ${ipAddress} banned for user ${userId}: ${reason}`);
+    
+    // Also save to PostgreSQL
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO ip_bans (ip_address, banned_at, user_id, reason)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (ip_address) DO UPDATE SET user_id = EXCLUDED.user_id, reason = EXCLUDED.reason`,
+          [ipAddress, new Date(), userId, reason]
+        );
+        console.log('[Store] IP ban saved to database');
+      } catch (error) {
+        console.error('[Store] Failed to save IP ban to database:', error);
+      }
+    }
   }
 
-  // Create a report
-  createReport(report: Report): void {
+  // Create a report - with PostgreSQL support
+  async createReport(report: Report): Promise<void> {
     this.reports.set(report.reportId, report);
     
     // Track by reported user
@@ -713,6 +728,33 @@ class DataStore {
     this.reporterHistory.get(report.reporterUserId)!.add(report.reportedUserId);
 
     console.log(`[Report] User ${report.reportedUserName} reported by ${report.reporterName}`);
+    
+    // Also save to PostgreSQL
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO reports (report_id, reported_user_id, reported_user_name, reported_user_selfie, reported_user_video,
+                                reporter_user_id, reporter_name, reporter_ip, reason, room_id, timestamp)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [
+            report.reportId,
+            report.reportedUserId,
+            report.reportedUserName,
+            report.reportedUserSelfie || null,
+            report.reportedUserVideo || null,
+            report.reporterUserId,
+            report.reporterName,
+            report.reporterIp,
+            report.reason,
+            report.roomId || null,
+            new Date(report.timestamp)
+          ]
+        );
+        console.log('[Store] Report saved to database');
+      } catch (error) {
+        console.error('[Store] Failed to save report to database:', error);
+      }
+    }
   }
 
   // Check if reporter already reported this user
@@ -738,11 +780,11 @@ class DataStore {
     return uniqueReporters.size;
   }
 
-  // Create or update ban record
+  // Create or update ban record - with PostgreSQL support
   async createBanRecord(record: BanRecord): Promise<void> {
     this.banRecords.set(record.userId, record);
     
-    // Also update user's ban status
+    // Also update user's ban status in users table
     const user = await this.getUser(record.userId);
     if (user) {
       await this.updateUser(record.userId, {
@@ -755,11 +797,48 @@ class DataStore {
 
     // Ban all IPs associated with this user
     const userIps = this.getUserIps(record.userId);
-    userIps.forEach(ip => {
-      this.banIp(ip, record.userId, record.bannedReason);
-    });
+    for (const ip of userIps) {
+      await this.banIp(ip, record.userId, record.bannedReason);
+    }
 
     console.log(`[Ban] User ${record.userName} status: ${record.banStatus}`);
+    
+    // Also save ban record to PostgreSQL
+    if (this.useDatabase) {
+      try {
+        await query(
+          `INSERT INTO ban_records (user_id, user_name, user_selfie, user_video, ban_status, banned_at, banned_reason, 
+                                    report_count, review_status, reviewed_at, reviewed_by, ip_addresses)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           ON CONFLICT (user_id) DO UPDATE SET 
+             ban_status = EXCLUDED.ban_status,
+             banned_at = EXCLUDED.banned_at,
+             banned_reason = EXCLUDED.banned_reason,
+             report_count = EXCLUDED.report_count,
+             review_status = EXCLUDED.review_status,
+             reviewed_at = EXCLUDED.reviewed_at,
+             reviewed_by = EXCLUDED.reviewed_by,
+             ip_addresses = EXCLUDED.ip_addresses`,
+          [
+            record.userId,
+            record.userName,
+            record.userSelfie || null,
+            record.userVideo || null,
+            record.banStatus,
+            new Date(record.bannedAt),
+            record.bannedReason,
+            record.reportCount,
+            record.reviewStatus || null,
+            record.reviewedAt ? new Date(record.reviewedAt) : null,
+            record.reviewedBy || null,
+            JSON.stringify(record.ipAddresses)
+          ]
+        );
+        console.log('[Store] Ban record saved to database');
+      } catch (error) {
+        console.error('[Store] Failed to save ban record to database:', error);
+      }
+    }
   }
 
   getBanRecord(userId: string): BanRecord | undefined {
