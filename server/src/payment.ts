@@ -296,9 +296,39 @@ router.post('/validate-code', async (req: any, res) => {
 /**
  * GET /payment/status
  * Check if user has paid or used valid code
+ * CRITICAL: Always fetches fresh from database to avoid cache issues after webhook
  */
 router.get('/status', requireAuth, async (req: any, res) => {
-  const user = await store.getUser(req.userId);
+  // CRITICAL FIX: Query database directly, bypass cache
+  // This ensures we get fresh data immediately after webhook updates
+  let user: any = null;
+  
+  if (process.env.DATABASE_URL) {
+    try {
+      const { query } = await import('./database');
+      const result = await query('SELECT * FROM users WHERE user_id = $1', [req.userId]);
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        // Convert database row to user object
+        user = {
+          userId: row.user_id,
+          name: row.name,
+          paidStatus: row.paid_status,
+          paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
+          myInviteCode: row.my_invite_code,
+          inviteCodeUsesRemaining: row.invite_code_uses_remaining,
+          inviteCodeUsed: row.invite_code_used,
+        };
+      }
+    } catch (error) {
+      console.error('[Payment] Direct DB query failed, falling back to store:', error);
+      user = await store.getUser(req.userId);
+    }
+  } else {
+    // No database, use store
+    user = await store.getUser(req.userId);
+  }
+  
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -322,7 +352,7 @@ router.get('/status', requireAuth, async (req: any, res) => {
     paidStatus: user.paidStatus || 'unpaid',
     paidAt: user.paidAt,
     myInviteCode: user.myInviteCode,
-    inviteCodeUsesRemaining: myCodeInfo?.usesRemaining || 0,
+    inviteCodeUsesRemaining: myCodeInfo?.usesRemaining || user.inviteCodeUsesRemaining || 0,
     myCodeInfo, // Full code details
     inviteCodeUsed: user.inviteCodeUsed, // Which code they used to sign up
   });
