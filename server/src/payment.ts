@@ -152,7 +152,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
           isActive: true,
         };
 
-        store.createInviteCode(code);
+        // CRITICAL FIX: await the invite code creation (was missing await!)
+        await store.createInviteCode(code);
         
         // Store code on user profile (await for database)
         await store.updateUser(userId, {
@@ -161,6 +162,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
         });
 
         console.log(`[Payment] Generated invite code ${inviteCode} for ${user.name} (4 uses)`);
+      } else {
+        console.error('[Payment] ❌ User not found after payment:', userId);
       }
 
       break;
