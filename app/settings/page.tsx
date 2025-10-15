@@ -192,13 +192,14 @@ export default function SettingsPage() {
                 {/* QR Code - Compact */}
                 <div className="flex justify-center">
                   <div className="rounded-lg bg-white p-2">
-                    <Image 
+                    {/* Use img tag for QR codes - more reliable than Next.js Image */}
+                    <img 
                       src={`${API_BASE}/payment/qr/${paymentStatus.myInviteCode}`}
                       alt="QR Code"
-                      width={128}
-                      height={128}
                       className="w-32 h-32"
-                      unoptimized
+                      onError={(e) => {
+                        console.error('[Settings] QR Code failed to load');
+                      }}
                     />
                   </div>
                 </div>
