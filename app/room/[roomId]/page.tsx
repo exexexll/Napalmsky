@@ -439,6 +439,21 @@ export default function RoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // End call (defined early so it can be used in other callbacks)
+  const handleEndCall = useCallback(() => {
+    console.log('[Room] handleEndCall called');
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (socketRef.current) {
+      console.log('[Room] Emitting call:end to server');
+      socketRef.current.emit('call:end', { roomId });
+    } else {
+      console.error('[Room] Socket not available when trying to end call');
+    }
+  }, [roomId]);
+
   // Timer (useCallback to avoid dependency warnings)
   const startTimer = useCallback(() => {
     if (timerStarted.current) {
@@ -600,21 +615,6 @@ export default function RoomPage() {
       setShowSocialConfirm(false);
     }
   };
-
-  // End call
-  const handleEndCall = useCallback(() => {
-    console.log('[Room] handleEndCall called');
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (socketRef.current) {
-      console.log('[Room] Emitting call:end to server');
-      socketRef.current.emit('call:end', { roomId });
-    } else {
-      console.error('[Room] Socket not available when trying to end call');
-    }
-  }, [roomId]);
 
   const confirmLeave = useCallback(() => {
     console.log('[Room] confirmLeave called');
