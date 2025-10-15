@@ -89,7 +89,7 @@ export function Hero() {
 
           {/* Subtitle */}
           <p className="mb-8 font-inter text-base font-medium text-white/95 sm:text-lg lg:text-xl">
-            A Speed-Dating Platform Inspired by 500 D.O.S
+            Speed Dating Reimagined — Live Matches, Zero Waiting.
           </p>
 
           {/* CTAs */}

@@ -19,11 +19,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Napalm Sky - Speeddating Platform',
-  description: 'speed-dating platform made by 500 D.O.S Addict',
+  title: 'Napalm Sky - Speed Dating Reimagined',
+  description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
   openGraph: {
-    title: 'Napalm Sky - Speeddating Platform',
-    description: 'speed-dating platform made by 500 D.O.S Addict',
+    title: 'Napalm Sky - Speed Dating Reimagined',
+    description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
     images: [
       {
         url: '/public/image.jpg',
