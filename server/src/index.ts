@@ -188,7 +188,8 @@ app.use('/room', apiLimiter, roomRoutes);
 app.use('/user', apiLimiter, userRoutes);
 app.use('/referral', apiLimiter, referralRoutes);
 app.use('/report', reportLimiter, reportRoutes);
-app.use('/payment', paymentLimiter, paymentRoutes);
+// CRITICAL FIX: Don't apply rate limiter to /payment routes (interferes with Stripe webhook)
+app.use('/payment', paymentRoutes);
 app.use('/turn', turnLimiter, turnRoutes);
 app.use('/admin', authLimiter, adminAuthRoutes);
 
