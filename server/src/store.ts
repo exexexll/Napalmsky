@@ -966,26 +966,22 @@ class DataStore {
 
   // Create an invite code - with PostgreSQL support
   async createInviteCode(inviteCode: InviteCode): Promise<void> {
+    // ALWAYS save to memory first (works immediately)
     this.inviteCodes.set(inviteCode.code, inviteCode);
     console.log(`[InviteCode] Created ${inviteCode.type} code: ${inviteCode.code} (${inviteCode.maxUses === -1 ? 'unlimited' : inviteCode.maxUses} uses)`);
     
+    // Try to save to PostgreSQL (best effort)
     if (this.useDatabase) {
       try {
-        // First ensure the user exists in the database (if not admin code)
-        if (inviteCode.createdBy && inviteCode.type !== 'admin') {
-          const userExists = await this.getUser(inviteCode.createdBy);
-          if (!userExists) {
-            console.warn(`[InviteCode] User ${inviteCode.createdBy.substring(0, 8)} not in database - code saved to memory only`);
-            return; // Don't try to insert into PostgreSQL
-          }
-        }
-        
         await query(
           `INSERT INTO invite_codes (code, created_by, created_by_name, created_at, type, max_uses, uses_remaining, used_by, is_active)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (code) DO UPDATE SET 
+             uses_remaining = EXCLUDED.uses_remaining,
+             used_by = EXCLUDED.used_by`,
           [
             inviteCode.code,
-            inviteCode.createdBy || null, // Allow NULL for users not in DB
+            inviteCode.createdBy || null, // NULL if user not in DB
             inviteCode.createdByName,
             new Date(inviteCode.createdAt),
             inviteCode.type,
@@ -995,10 +991,14 @@ class DataStore {
             inviteCode.isActive
           ]
         );
-        console.log(`[InviteCode] Saved to database: ${inviteCode.code}`);
-      } catch (error) {
-        console.error('[Store] Failed to create invite code in database:', error);
-        console.warn('[InviteCode] Code will work in memory-only mode');
+        console.log(`[InviteCode] ✅ Saved to PostgreSQL: ${inviteCode.code}`);
+      } catch (error: any) {
+        // Foreign key error if user doesn't exist - that's OK, code still works in memory
+        if (error.code === '23503') {
+          console.warn(`[InviteCode] User not in PostgreSQL - code ${inviteCode.code} works in memory only`);
+        } else {
+          console.error('[Store] Failed to create invite code in database:', error);
+        }
       }
     }
   }
