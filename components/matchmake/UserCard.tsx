@@ -39,6 +39,9 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   const videoRef = useRef<HTMLVideoElement>(null);
   const waitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Detect mobile Safari for compact UI
+  const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   // Set mounted flag after initial render (prevents glitch on card change)
   useEffect(() => {
@@ -208,30 +211,33 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
       {/* User Info Overlay - Top (Animates based on hover) */}
       <motion.div 
         className="absolute top-0 left-0 right-0 z-10"
-        initial={{ padding: '2rem' }}
+        initial={{ padding: isMobile ? '1rem' : '2rem' }}
         animate={{
-          padding: isHovered ? '2rem' : '1rem',
+          padding: isHovered ? (isMobile ? '1rem' : '2rem') : (isMobile ? '0.5rem' : '1rem'),
         }}
         transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
       >
         <motion.div 
           className="flex items-center gap-4 rounded-2xl bg-black/70 backdrop-blur-md"
-          initial={{ padding: '1.5rem' }}
+          initial={{ padding: isMobile ? '0.75rem' : '1.5rem' }}
           animate={{
-            padding: isHovered ? '1.5rem' : '0.75rem',
+            padding: isHovered ? (isMobile ? '0.75rem' : '1.5rem') : (isMobile ? '0.5rem' : '0.75rem'),
           }}
           transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
         >
-          {/* Profile Picture - Shrinks when not hovered */}
+          {/* Profile Picture - Smaller on mobile */}
           <motion.div
-            initial={{ width: '5rem', height: '5rem' }}
+            initial={{ 
+              width: isMobile ? '3rem' : '5rem', 
+              height: isMobile ? '3rem' : '5rem' 
+            }}
             animate={{
-              width: isHovered ? '5rem' : '3rem',
-              height: isHovered ? '5rem' : '3rem',
+              width: isHovered ? (isMobile ? '3rem' : '5rem') : (isMobile ? '2.5rem' : '3rem'),
+              height: isHovered ? (isMobile ? '3rem' : '5rem') : (isMobile ? '2.5rem' : '3rem'),
             }}
             transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
             className="relative flex-shrink-0 overflow-hidden rounded-full border-white/30"
-            style={{ borderWidth: isHovered ? '4px' : '2px' }}
+            style={{ borderWidth: isHovered ? (isMobile ? '2px' : '4px') : '2px' }}
           >
             {user.selfieUrl ? (
               <Image
@@ -254,13 +260,13 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
 
           {/* Text Content - Animates */}
           <div className="flex-1 overflow-hidden">
-            {/* Name - Shrinks when not hovered */}
+            {/* Name - Smaller on mobile */}
             <div className="flex items-center gap-2 mb-1">
               <motion.h3 
                 className="font-playfair font-bold text-white leading-none truncate"
-                initial={{ fontSize: '3rem' }}
+                initial={{ fontSize: isMobile ? '1.5rem' : '3rem' }}
                 animate={{
-                  fontSize: isHovered ? '3rem' : '1.5rem',
+                  fontSize: isHovered ? (isMobile ? '1.5rem' : '3rem') : (isMobile ? '1.25rem' : '1.5rem'),
                 }}
                 transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
               >
