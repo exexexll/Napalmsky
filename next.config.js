@@ -69,12 +69,12 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
         port: '3001',
-        pathname: '/uploads/**',
+        pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'napalmsky-production.up.railway.app',
-        pathname: '/uploads/**',
+        pathname: '/**',
       },
       {
         protocol: 'https',
