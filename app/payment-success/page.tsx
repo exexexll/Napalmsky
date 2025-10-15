@@ -28,38 +28,41 @@ function PaymentSuccessPageContent() {
       return;
     }
 
-    // Wait a bit for webhook to process, then fetch status
-    setTimeout(() => {
-      fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/status`, {
-        headers: { 'Authorization': `Bearer ${session.sessionToken}` },
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
-            setMyInviteCode(data.myInviteCode || '');
-            // Use Railway URL directly for QR code (fallback to environment variable)
-            const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'https://napalmsky-production.up.railway.app';
-            setQrCodeUrl(`${apiBase}/payment/qr/${data.myInviteCode}`);
-            console.log('[Payment] QR URL:', `${apiBase}/payment/qr/${data.myInviteCode}`);
-            setLoading(false);
-          } else if (retryCount < 5) {
-            // Payment not processed yet, retry (max 5 times = 10 seconds)
-            console.log(`Payment not processed yet, retrying... (${retryCount + 1}/5)`);
-            // DON'T reload - just increment and useEffect will re-run!
-            setRetryCount(prev => prev + 1);
-          } else {
-            // Max retries reached - webhook probably isn't working
-            console.warn('Webhook not processing. Allowing user to continue anyway.');
-            setLoading(false);
-            // Show message to user that they can continue
-          }
-        })
-        .catch(err => {
-          console.error('Failed to check payment status:', err);
-          setLoading(false);
+    // Check payment status (with smart retry logic)
+    const checkPaymentStatus = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/status`, {
+          headers: { 'Authorization': `Bearer ${session.sessionToken}` },
         });
-    }, 2000); // Wait 2 seconds for webhook
-  }, [router, searchParams, retryCount]);
+        
+        const data = await res.json();
+        
+        if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
+          setMyInviteCode(data.myInviteCode || '');
+          const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'https://napalmsky-production.up.railway.app';
+          setQrCodeUrl(`${apiBase}/payment/qr/${data.myInviteCode}`);
+          console.log('[Payment] ✅ Payment confirmed! QR Code:', data.myInviteCode);
+          setLoading(false);
+        } else if (retryCount < 8) {
+          // Retry with exponential backoff: 2s, 4s, 6s, 8s... (max 8 retries = ~30s total)
+          const delay = Math.min(2000 * (retryCount + 1), 5000);
+          console.log(`[Payment] Not ready yet, retrying in ${delay/1000}s... (${retryCount + 1}/8)`);
+          setTimeout(() => setRetryCount(prev => prev + 1), delay);
+        } else {
+          // Max retries - payment might still be processing, let user continue
+          console.warn('[Payment] Max retries reached - allowing user to continue');
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('[Payment] Error checking status:', err);
+        setLoading(false);
+      }
+    };
+    
+    // Initial delay then check
+    const timer = setTimeout(checkPaymentStatus, 2000);
+    return () => clearTimeout(timer);
+  }, [router, searchParams, retryCount, session.sessionToken]);
 
   if (loading) {
     return (
