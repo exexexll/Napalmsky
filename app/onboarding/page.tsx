@@ -38,6 +38,10 @@ function OnboardingPageContent() {
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Upload progress
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadProgress, setShowUploadProgress] = useState(false);
 
   // Step 4: Permanent
   const [email, setEmail] = useState('');
@@ -302,8 +306,27 @@ function OnboardingPageContent() {
       });
 
       setLoading(true);
+      
+      // Show progress bar after 2 seconds if still uploading
+      const progressTimeout = setTimeout(() => {
+        setShowUploadProgress(true);
+      }, 2000);
+      
+      // Simulate progress (Cloudinary upload doesn't report real progress)
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 3, 90));
+      }, 500);
+      
       uploadVideo(sessionToken, blob)
         .then(() => {
+          setUploadProgress(100);
+          clearTimeout(progressTimeout);
+          clearInterval(progressInterval);
+          
+          setTimeout(() => {
+            setShowUploadProgress(false);
+            setUploadProgress(0);
+          }, 1000);
           // Stream already stopped in stopVideoRecording, but double-check
           if (stream) {
             console.log('[Onboarding] Stopping any remaining camera/mic streams');
@@ -399,6 +422,20 @@ function OnboardingPageContent() {
 
   return (
     <main id="main" className="min-h-screen bg-[#0a0a0c] py-20">
+      {/* Upload Progress Bar */}
+      {showUploadProgress && (
+        <div className="fixed top-4 right-4 z-50 bg-black/90 backdrop-blur-md rounded-xl p-4 border border-[#ff9b6b]/30 shadow-2xl">
+          <p className="text-sm text-[#eaeaf0] mb-2 font-medium">Uploading video...</p>
+          <div className="w-48 h-2 bg-white/10 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-[#ff9b6b] to-[#ff7b4b] transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+          <p className="text-xs text-[#eaeaf0]/50 mt-1">{uploadProgress}%</p>
+        </div>
+      )}
+      
       <Container>
         <div className="mx-auto max-w-2xl">
           <AnimatePresence mode="wait">
@@ -588,9 +625,16 @@ function OnboardingPageContent() {
                   {isRecording && (
                     <button
                       onClick={stopVideoRecording}
-                      className="focus-ring w-full rounded-xl bg-red-500 px-6 py-3 font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+                      disabled={recordingTime < 5}
+                      className={`focus-ring w-full rounded-xl px-6 py-3 font-medium shadow-sm transition-opacity ${
+                        recordingTime < 5 
+                          ? 'bg-gray-500/50 text-gray-300 cursor-not-allowed opacity-50'
+                          : 'bg-red-500 text-white hover:opacity-90'
+                      }`}
                     >
-                      Stop recording
+                      {recordingTime < 5 
+                        ? `Keep recording... (${5 - recordingTime}s minimum)` 
+                        : 'Stop recording'}
                     </button>
                   )}
 
