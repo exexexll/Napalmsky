@@ -9,17 +9,20 @@ import { Pool, QueryResult } from 'pg';
 // Initialize connection pool with better error handling
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: parseInt(process.env.DATABASE_POOL_MAX || '20'), // Maximum connections
+  max: parseInt(process.env.DATABASE_POOL_MAX || '10'), // Reduced from 20 to prevent connection issues
   min: parseInt(process.env.DATABASE_POOL_MIN || '2'), // Minimum connections
-  idleTimeoutMillis: 30000, // Remove idle clients after 30s
-  connectionTimeoutMillis: parseInt(process.env.DATABASE_TIMEOUT || '30000'),
+  idleTimeoutMillis: 60000, // Increased to 60s - Railway postgres needs longer timeout
+  connectionTimeoutMillis: parseInt(process.env.DATABASE_TIMEOUT || '10000'), // Reduced to fail fast
   // Allow pool to recover from connection errors
   allowExitOnIdle: false, // Keep pool alive even with no connections
   // Add statement timeout to prevent hanging queries
-  statement_timeout: parseInt(process.env.DATABASE_QUERY_TIMEOUT || '30000'),
+  statement_timeout: parseInt(process.env.DATABASE_QUERY_TIMEOUT || '10000'),
   ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false // For AWS RDS
+    rejectUnauthorized: false // For Railway/AWS RDS
   } : false,
+  // CRITICAL: Prevent "Connection reset by peer" errors
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000, // Send keepalive every 10s
 });
 
 // Connection error handling
@@ -61,38 +64,57 @@ pool.on('remove', (client) => {
   console.log('[Database] Client removed from pool');
 });
 
-// Query helper with logging and error handling
+// Query helper with logging, error handling, and automatic retry
 export async function query(text: string, params?: any[]): Promise<QueryResult> {
   const start = Date.now();
+  const maxRetries = 2;
   
-  try {
-    const result = await pool.query(text, params);
-    const duration = Date.now() - start;
-    
-    // Log slow queries (>100ms)
-    if (duration > 100) {
-      console.warn('[Database] Slow query detected:', {
-        query: text.substring(0, 100) + '...',
-        duration: `${duration}ms`,
-        rows: result.rowCount
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await pool.query(text, params);
+      const duration = Date.now() - start;
+      
+      // Log slow queries (>100ms)
+      if (duration > 100) {
+        console.warn('[Database] Slow query detected:', {
+          query: text.substring(0, 100) + '...',
+          duration: `${duration}ms`,
+          rows: result.rowCount
+        });
+      } else {
+        console.log('[Database] Query executed:', {
+          duration: `${duration}ms`,
+          rows: result.rowCount
+        });
+      }
+      
+      return result;
+    } catch (error: any) {
+      // Retry on connection errors
+      const shouldRetry = attempt < maxRetries && (
+        error.code === 'ECONNRESET' ||
+        error.code === '57P01' || // Connection terminated
+        error.code === '08006' || // Connection failure
+        error.message?.includes('Connection terminated')
+      );
+      
+      if (shouldRetry) {
+        console.warn(`[Database] Connection error, retrying (${attempt + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+        continue;
+      }
+      
+      console.error('[Database] Query error:', {
+        query: text.substring(0, 100),
+        params,
+        error: error.message,
+        code: error.code
       });
-    } else {
-      console.log('[Database] Query executed:', {
-        duration: `${duration}ms`,
-        rows: result.rowCount
-      });
+      throw error;
     }
-    
-    return result;
-  } catch (error: any) {
-    console.error('[Database] Query error:', {
-      query: text,
-      params,
-      error: error.message,
-      code: error.code
-    });
-    throw error;
   }
+  
+  throw new Error('Query failed after retries');
 }
 
 // Transaction helper (atomic operations)
