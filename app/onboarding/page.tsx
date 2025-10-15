@@ -328,15 +328,18 @@ function OnboardingPageContent() {
             setUploadProgress(0);
           }, 1000);
           // Stream already stopped in stopVideoRecording, but double-check
-          if (stream) {
-            console.log('[Onboarding] Stopping any remaining camera/mic streams');
-            stream.getTracks().forEach(track => {
-              if (track.readyState === 'live') {
-                track.stop();
-              }
-            });
-            setStream(null);
-          }
+          // Use state updater to get latest stream value
+          setStream(prevStream => {
+            if (prevStream) {
+              console.log('[Onboarding] Stopping any remaining camera/mic streams');
+              prevStream.getTracks().forEach(track => {
+                if (track.readyState === 'live') {
+                  track.stop();
+                }
+              });
+            }
+            return null;
+          });
           // If was introduced, show introduction screen, otherwise go to permanent
           if (targetUser) {
             setStep('introduction');
@@ -347,7 +350,7 @@ function OnboardingPageContent() {
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
-  }, [recordedChunks, isRecording, sessionToken, targetUser]);
+  }, [recordedChunks, isRecording, sessionToken, targetUser]); // stream not needed - using state updater
 
   /**
    * Step 4: Optional Permanent

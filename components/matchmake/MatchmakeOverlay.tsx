@@ -94,7 +94,7 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, [loading, directMatchTarget]);
 
   // Show toast
   const showToast = (message: string, type: 'error' | 'info' = 'info') => {
@@ -394,6 +394,46 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     return () => window.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, currentIndex, users.length, hasMore, loading, incomingInvite, inviteStatuses]);
+
+  // Page Visibility API: Auto-offline when tab out, auto-rejoin when tab back
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // User tabbed out or minimized - leave queue to prevent ghost users
+        console.log('[Matchmake] 👻 User tabbed out, leaving queue to prevent ghost users...');
+        
+        if (socketRef.current) {
+          socketRef.current.emit('queue:leave');
+          socketRef.current.emit('presence:leave');
+          console.log('[Matchmake] ✅ Left queue and presence (tab hidden)');
+        }
+      } else {
+        // User came back - rejoin queue automatically
+        console.log('[Matchmake] 👋 User tabbed back in, rejoining queue...');
+        
+        if (socketRef.current) {
+          socketRef.current.emit('presence:join');
+          socketRef.current.emit('queue:join');
+          
+          // Reload queue to get fresh users
+          console.log('[Matchmake] 🔄 Reloading queue after tab return...');
+          setTimeout(() => {
+            loadInitialQueue();
+          }, 500); // Small delay to ensure server state is updated
+          
+          console.log('[Matchmake] ✅ Rejoined queue and presence (tab visible)');
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isOpen, loadInitialQueue]);
 
   // Auto-invite when direct match target is set
   useEffect(() => {

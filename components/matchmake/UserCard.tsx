@@ -71,7 +71,7 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   // Wait timer countdown with safety timeout
   useEffect(() => {
     if (inviteStatus === 'waiting') {
-      console.log('[UserCard] Starting wait timer for', user.name);
+      console.log('[UserCard] Starting wait timer for user');
       setWaitTime(20);
       setShowWaitOptions(false);
       
@@ -106,7 +106,7 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
         waitTimerRef.current = null;
       }
     };
-  }, [inviteStatus]); // ONLY depend on inviteStatus to prevent timer resets
+  }, [inviteStatus]); // ONLY depend on inviteStatus to prevent timer resets (user.name not needed)
 
   // Update cooldown timer
   useEffect(() => {

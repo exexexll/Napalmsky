@@ -119,7 +119,7 @@ function PaymentSuccessPageContent() {
                 {qrCodeUrl && (
                   <div className="flex justify-center mb-3">
                     <div className="rounded-lg bg-white p-2">
-                      <img src={qrCodeUrl} alt="QR Code" className="w-32 h-32" />
+                      <Image src={qrCodeUrl} alt="QR Code" width={128} height={128} className="w-32 h-32" unoptimized />
                     </div>
                   </div>
                 )}

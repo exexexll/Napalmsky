@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Container } from '@/components/Container';
 import { getSession, clearSession } from '@/lib/session';
 import { API_BASE } from '@/lib/config';
@@ -191,10 +192,13 @@ export default function SettingsPage() {
                 {/* QR Code - Compact */}
                 <div className="flex justify-center">
                   <div className="rounded-lg bg-white p-2">
-                    <img 
+                    <Image 
                       src={`${API_BASE}/payment/qr/${paymentStatus.myInviteCode}`}
                       alt="QR Code"
+                      width={128}
+                      height={128}
                       className="w-32 h-32"
+                      unoptimized
                     />
                   </div>
                 </div>

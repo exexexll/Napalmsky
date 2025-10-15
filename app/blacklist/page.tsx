@@ -172,10 +172,11 @@ export default function BlacklistPage() {
                 {/* Media */}
                 <div className="relative aspect-square bg-black">
                   {entry.userSelfie ? (
-                    <img
+                    <Image
                       src={entry.userSelfie}
                       alt={entry.userName}
-                      className="h-full w-full object-cover opacity-75"
+                      fill
+                      className="object-cover opacity-75"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">

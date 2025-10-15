@@ -305,9 +305,11 @@ export default function AdminPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-4">
                       {record.userSelfie && (
-                        <img
+                        <Image
                           src={record.userSelfie || ''}
                           alt={record.userName}
+                          width={64}
+                          height={64}
                           className="h-16 w-16 rounded-full object-cover"
                         />
                       )}
@@ -466,14 +468,13 @@ export default function AdminPage() {
                   <div className="flex items-start gap-4">
                     {/* QR Code */}
                     <div className="rounded-lg bg-white p-2 flex-shrink-0">
-                      <img 
+                      <Image 
                         src={`${API_BASE}/payment/qr/${code.code}`}
                         alt="QR Code"
+                        width={96}
+                        height={96}
                         className="w-24 h-24"
-                        onError={(e) => {
-                          console.error('QR image failed to load for code:', code.code);
-                          e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Error</text></svg>';
-                        }}
+                        unoptimized
                       />
                     </div>
 

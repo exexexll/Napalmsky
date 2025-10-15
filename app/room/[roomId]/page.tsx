@@ -439,8 +439,8 @@ export default function RoomPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Timer
-  const startTimer = () => {
+  // Timer (useCallback to avoid dependency warnings)
+  const startTimer = useCallback(() => {
     if (timerStarted.current) {
       console.log('[Timer] Already started, skipping');
       return;
@@ -448,7 +448,6 @@ export default function RoomPage() {
     
     timerStarted.current = true;
     console.log('[Timer] ⏰ Starting countdown from', agreedSeconds, 'seconds');
-    console.log('[Timer] Initial timeRemaining state:', timeRemaining);
     
     timerRef.current = setInterval(() => {
       setTimeRemaining(prev => {
@@ -469,7 +468,7 @@ export default function RoomPage() {
     }, 1000);
     
     console.log('[Timer] ✅ Interval created, ticking every 1000ms');
-  };
+  }, [agreedSeconds, handleEndCall]);
 
   // Start timer when BOTH conditions are met (fixes race condition)
   // Uses state to trigger re-checks when connection state changes
@@ -510,7 +509,7 @@ export default function RoomPage() {
       console.log('[Timer] All conditions met - starting timer from', agreedSeconds, 'seconds');
       startTimer();
     }
-  }, [connectionState, remoteTrackReceived, agreedSeconds]); // Watch for ALL changes
+  }, [connectionState, remoteTrackReceived, agreedSeconds, startTimer]); // Watch for ALL changes
 
   // ICE failure handler
   const handleICEFailure = () => {
@@ -1103,6 +1102,60 @@ export default function RoomPage() {
                 Share
               </button>
             </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Connecting Loading Screen */}
+      {connectionPhase !== 'connected' && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center space-y-8 px-8"
+          >
+            {/* Animated Spinner */}
+            <div className="relative mx-auto">
+              <div className="w-32 h-32 border-8 border-[#ff9b6b]/20 border-t-[#ff9b6b] rounded-full animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg className="w-16 h-16 text-[#ff9b6b]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+            
+            {/* Connection Phase Messages */}
+            <div className="space-y-3">
+              <h3 className="font-playfair text-3xl font-bold text-white">
+                {connectionPhase === 'initializing' && 'Initializing...'}
+                {connectionPhase === 'gathering' && 'Preparing connection...'}
+                {connectionPhase === 'connecting' && `Connecting to ${peerName}...`}
+              </h3>
+              <p className="text-base text-white/70 max-w-md mx-auto">
+                {connectionPhase === 'initializing' && 'Setting up camera and microphone'}
+                {connectionPhase === 'gathering' && 'Gathering network information for secure connection'}
+                {connectionPhase === 'connecting' && 'Establishing peer-to-peer connection...'}
+              </p>
+            </div>
+
+            {/* Progress Indicator */}
+            <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden mx-auto">
+              <motion.div
+                className="h-full bg-gradient-to-r from-[#ff9b6b] to-[#ff7a3d]"
+                initial={{ width: '0%' }}
+                animate={{ 
+                  width: connectionPhase === 'initializing' ? '33%' : 
+                         connectionPhase === 'gathering' ? '66%' : 
+                         connectionPhase === 'connecting' ? '90%' : '100%'
+                }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+
+            {/* Helpful Tip */}
+            <p className="text-xs text-white/40 max-w-sm mx-auto">
+              {connectionPhase === 'connecting' && 'This may take a few seconds on mobile networks'}
+            </p>
           </motion.div>
         </div>
       )}

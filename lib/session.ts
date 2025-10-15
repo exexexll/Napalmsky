@@ -65,3 +65,34 @@ export function isAuthenticated(): boolean {
   return getSession() !== null;
 }
 
+/**
+ * Safari Session Persistence Fix
+ * 
+ * Safari on iOS aggressively clears memory when tabs are backgrounded,
+ * which can sometimes affect localStorage access timing.
+ * 
+ * This ensures the session is force-saved before the page unloads/backgrounds.
+ */
+if (typeof window !== 'undefined') {
+  // pagehide event fires before page is unloaded (Safari-compatible)
+  window.addEventListener('pagehide', () => {
+    const session = getSession();
+    if (session) {
+      // Force re-save to ensure persistence
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      console.log('[Session] Force-saved session on pagehide (Safari fix)');
+    }
+  });
+
+  // Also handle visibilitychange for Safari iOS
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      const session = getSession();
+      if (session) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        console.log('[Session] Force-saved session on visibility change (Safari fix)');
+      }
+    }
+  });
+}
+
