@@ -26,7 +26,8 @@ import { userCache, sessionCache } from './lru-cache';
 export async function configureRedisAdapter(io: SocketServer): Promise<void> {
   const redisUrl = process.env.REDIS_URL;
   
-  if (!redisUrl) {
+  // Skip if no Redis URL or if it's Railway's placeholder/internal URL
+  if (!redisUrl || redisUrl.includes('redis.railway.internal')) {
     console.log('[Redis] No REDIS_URL configured - using single-instance mode');
     console.log('[Redis] For horizontal scaling (1000+ users), add Redis to Railway');
     return;
@@ -37,9 +38,14 @@ export async function configureRedisAdapter(io: SocketServer): Promise<void> {
     const pubClient = createClient({ url: redisUrl });
     const subClient = pubClient.duplicate();
 
-    // Error handling
-    pubClient.on('error', (err) => console.error('[Redis] Pub client error:', err));
-    subClient.on('error', (err) => console.error('[Redis] Sub client error:', err));
+    // Error handling - but prevent spam by limiting error logs
+    let errorCount = 0;
+    pubClient.on('error', (err) => {
+      if (errorCount++ < 3) console.error('[Redis] Pub client error:', err.message);
+    });
+    subClient.on('error', (err) => {
+      if (errorCount++ < 3) console.error('[Redis] Sub client error:', err.message);
+    });
 
     // Connect
     await Promise.all([
@@ -52,8 +58,8 @@ export async function configureRedisAdapter(io: SocketServer): Promise<void> {
 
     console.log('[Redis] ✅ Redis adapter configured - horizontal scaling enabled');
     console.log('[Redis] Can now scale to multiple server instances');
-  } catch (error) {
-    console.error('[Redis] Failed to configure adapter:', error);
+  } catch (error: any) {
+    console.error('[Redis] Failed to configure adapter:', error.message || error);
     console.warn('[Redis] Continuing with single-instance mode');
   }
 }
