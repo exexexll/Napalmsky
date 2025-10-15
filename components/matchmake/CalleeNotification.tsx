@@ -26,10 +26,11 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
   const [timeLeft, setTimeLeft] = useState(20); // Changed to 20s to respond
   const videoRef = useRef<HTMLVideoElement>(null);
   const firstFocusRef = useRef<HTMLButtonElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Countdown for decision timer
   useEffect(() => {
-    const interval = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           // Auto-decline on timeout
@@ -40,8 +41,37 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
       });
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, [invite.inviteId, onDecline]);
+  
+  // Listen for caller extending wait time
+  useEffect(() => {
+    const { connectSocket } = require('@/lib/socket');
+    const { getSession } = require('@/lib/session');
+    
+    const session = getSession();
+    if (!session) return;
+    
+    const socket = connectSocket(session.sessionToken);
+    
+    const handleWaitExtended = ({ extraSeconds }: { extraSeconds: number }) => {
+      console.log('[CalleeNotification] Caller extended wait by', extraSeconds, 'seconds');
+      setTimeLeft(prev => prev + extraSeconds);
+      
+      // Show brief message
+      console.log('[CalleeNotification] ✅ Timer extended! Now have', timeLeft + extraSeconds, 'seconds');
+    };
+    
+    socket.on('call:wait-extended', handleWaitExtended);
+    
+    return () => {
+      socket.off('call:wait-extended', handleWaitExtended);
+    };
+  }, [timeLeft]);
 
   // Focus trap - focus first button on mount
   useEffect(() => {

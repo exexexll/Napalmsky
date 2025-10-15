@@ -591,6 +591,22 @@ io.on('connection', (socket) => {
     console.log(`[Invite] ${inviteId} declined by user`);
   });
 
+  // Call: extend wait (caller wants to wait longer)
+  socket.on('call:extend-wait', async ({ toUserId }: { toUserId: string }) => {
+    if (!currentUserId) return;
+    
+    console.log(`[Invite] Caller ${currentUserId.substring(0, 8)} extending wait for ${toUserId.substring(0, 8)}`);
+    
+    // Notify receiver to add 20 more seconds to their timer
+    const targetSocket = activeSockets.get(toUserId);
+    if (targetSocket) {
+      io.to(targetSocket).emit('call:wait-extended', {
+        extraSeconds: 20
+      });
+      console.log('[Invite] ✅ Sent wait-extended notification to receiver');
+    }
+  });
+  
   // Call: rescind (caller cancels their own invite)
   socket.on('call:rescind', async ({ toUserId }: { toUserId: string }) => {
     if (!currentUserId) {

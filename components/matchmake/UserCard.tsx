@@ -644,6 +644,16 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
                         setShowWaitOptions(false);
                         setWaitTime(20);
                         
+                        // IMPORTANT: Notify receiver to extend their timer too!
+                        const session = getSession();
+                        if (session) {
+                          const socket = require('@/lib/socket').getSocket();
+                          if (socket) {
+                            socket.emit('call:extend-wait', { toUserId: user.userId });
+                            console.log('[UserCard] ✅ Sent extend-wait notification to receiver');
+                          }
+                        }
+                        
                         // Clear existing timer if any before creating new one
                         if (waitTimerRef.current) {
                           clearInterval(waitTimerRef.current);
