@@ -37,7 +37,10 @@ function PaymentSuccessPageContent() {
         .then(data => {
           if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
             setMyInviteCode(data.myInviteCode || '');
-            setQrCodeUrl(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/qr/${data.myInviteCode}`);
+            // Use Railway URL directly for QR code (fallback to environment variable)
+            const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'https://napalmsky-production.up.railway.app';
+            setQrCodeUrl(`${apiBase}/payment/qr/${data.myInviteCode}`);
+            console.log('[Payment] QR URL:', `${apiBase}/payment/qr/${data.myInviteCode}`);
             setLoading(false);
           } else if (retryCount < 5) {
             // Payment not processed yet, retry (max 5 times = 10 seconds)
