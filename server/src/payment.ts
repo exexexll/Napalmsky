@@ -115,31 +115,39 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event
-  switch (event.type) {
-    case 'checkout.session.completed':
-      const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.client_reference_id || session.metadata?.userId;
+  // CRITICAL: Wrap entire processing in try-catch
+  try {
+    // Handle the event
+    switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object as Stripe.Checkout.Session;
+        const userId = session.client_reference_id || session.metadata?.userId;
 
-      if (!userId) {
-        console.error('[Payment] No userId in webhook payload');
-        break;
-      }
+        if (!userId) {
+          console.error('[Payment] No userId in webhook payload');
+          return res.status(400).send('No userId in payload');
+        }
 
-      console.log(`[Payment] ✅ Payment successful for user ${userId.substring(0, 8)}`);
+        console.log(`[Payment] ✅ Payment successful for user ${userId.substring(0, 8)}`);
 
-      // Mark user as paid (await for database)
-      await store.updateUser(userId, {
-        paidStatus: 'paid',
-        paidAt: Date.now(),
-        paymentId: session.payment_intent as string,
-      });
+        // Mark user as paid (await for database)
+        await store.updateUser(userId, {
+          paidStatus: 'paid',
+          paidAt: Date.now(),
+          paymentId: session.payment_intent as string,
+        });
 
-      // Generate user's invite code (4 uses)
-      const inviteCode = await generateSecureCode();
-      const user = await store.getUser(userId);
-      
-      if (user) {
+        // Generate user's invite code (4 uses)
+        const inviteCode = await generateSecureCode();
+        console.log(`[Payment] Generated code: ${inviteCode}`);
+        
+        const user = await store.getUser(userId);
+        
+        if (!user) {
+          console.error('[Payment] ❌ User not found after payment:', userId);
+          return res.status(500).send('User not found');
+        }
+
         const code: InviteCode = {
           code: inviteCode,
           createdBy: userId,
@@ -154,6 +162,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
 
         // CRITICAL FIX: await the invite code creation (was missing await!)
         await store.createInviteCode(code);
+        console.log(`[Payment] Code created in store`);
         
         // Store code on user profile (await for database)
         await store.updateUser(userId, {
@@ -161,18 +170,20 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
           inviteCodeUsesRemaining: 4,
         });
 
-        console.log(`[Payment] Generated invite code ${inviteCode} for ${user.name} (4 uses)`);
-      } else {
-        console.error('[Payment] ❌ User not found after payment:', userId);
-      }
+        console.log(`[Payment] ✅ Complete! Generated invite code ${inviteCode} for ${user.name} (4 uses)`);
+        break;
 
-      break;
+      default:
+        console.log(`[Payment] Unhandled event type: ${event.type}`);
+    }
 
-    default:
-      console.log(`[Payment] Unhandled event type: ${event.type}`);
+    res.json({ received: true });
+  } catch (error: any) {
+    console.error('[Payment] ❌ CRITICAL ERROR processing webhook:', error);
+    console.error('[Payment] Error details:', error.message);
+    console.error('[Payment] Stack trace:', error.stack);
+    res.status(500).send('Webhook processing failed');
   }
-
-  res.json({ received: true });
 });
 
 /**
