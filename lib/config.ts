@@ -34,3 +34,5 @@ if (typeof window !== 'undefined' && IS_DEVELOPMENT) {
   });
 }
 
+
+// Force fresh Vercel build - Wed Oct 15 01:59:58 PDT 2025
