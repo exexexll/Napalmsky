@@ -26,9 +26,13 @@ export const metadata: Metadata = {
   ),
   title: 'Napalm Sky - Speed Dating Reimagined',
   description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
+  keywords: ['speed dating', 'video chat', 'matchmaking', 'dating app', 'live dating'],
+  authors: [{ name: 'Napalm Sky' }],
   openGraph: {
     title: 'Napalm Sky - Speed Dating Reimagined',
     description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
+    url: 'https://napalmsky.com',
+    siteName: 'Napalm Sky',
     images: [
       {
         url: '/public/image.jpg',
@@ -37,6 +41,22 @@ export const metadata: Metadata = {
         alt: 'Napalm Sky',
       },
     ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Napalm Sky - Speed Dating Reimagined',
+    description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
+    images: ['/public/image.jpg'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
 };
 

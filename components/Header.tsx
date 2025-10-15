@@ -31,9 +31,14 @@ export function Header() {
   if (pathname?.startsWith('/room')) {
     return null;
   }
+  
+  // Always hide header on blacklist page (has its own inline header)
+  if (pathname === '/blacklist') {
+    return null;
+  }
 
   // Hide header when logged in, EXCEPT on public pages
-  const publicPages = ['/', '/manifesto', '/blacklist', '/login'];
+  const publicPages = ['/', '/manifesto', '/login'];
   const isPublicPage = publicPages.includes(pathname || '');
   
   // Hide header for logged-in users on non-public pages
