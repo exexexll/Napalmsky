@@ -426,8 +426,9 @@ router.get('/qr/:code', async (req: any, res) => {
     const QRCode = await import('qrcode');
     
     // Generate QR code containing the signup URL with code
-    // Use FRONTEND_URL if set, otherwise derive from request
+    // Priority: FRONTEND_URL (env) > napalmsky.com (production default) > derived from request (dev)
     const frontendUrl = process.env.FRONTEND_URL || 
+                        (process.env.NODE_ENV === 'production' ? 'https://napalmsky.com' : null) ||
                         (req.headers.origin || `${req.protocol}://${req.get('host')}`).replace(':3001', ':3000');
     const signupUrl = `${frontendUrl}/onboarding?inviteCode=${code}`;
     console.log(`[QR] Generating QR for URL: ${signupUrl}`);
