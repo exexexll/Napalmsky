@@ -45,8 +45,8 @@ function PaymentSuccessPageContent() {
           } else if (retryCount < 5) {
             // Payment not processed yet, retry (max 5 times = 10 seconds)
             console.log(`Payment not processed yet, retrying... (${retryCount + 1}/5)`);
-            setRetryCount(retryCount + 1);
-            setTimeout(() => window.location.reload(), 2000);
+            // DON'T reload - just increment and useEffect will re-run!
+            setRetryCount(prev => prev + 1);
           } else {
             // Max retries reached - webhook probably isn't working
             console.warn('Webhook not processing. Allowing user to continue anyway.');
@@ -122,7 +122,15 @@ function PaymentSuccessPageContent() {
                 {qrCodeUrl && (
                   <div className="flex justify-center mb-3">
                     <div className="rounded-lg bg-white p-2">
-                      <Image src={qrCodeUrl} alt="QR Code" width={128} height={128} className="w-32 h-32" unoptimized />
+                      <img 
+                        src={qrCodeUrl} 
+                        alt="QR Code" 
+                        className="w-32 h-32"
+                        onError={(e) => {
+                          console.error('[Payment] QR Code failed to load:', qrCodeUrl);
+                          e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><text x="10" y="64" fill="red" font-size="12">QR Load Error</text></svg>';
+                        }}
+                      />
                     </div>
                   </div>
                 )}
