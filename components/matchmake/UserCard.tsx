@@ -332,13 +332,31 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
         )}
       </div>
 
-      {/* Status Banner - Above Controls */}
+      {/* Status Banner - Above Controls (Minimizable on hover) */}
       {status && (
-        <div className="absolute bottom-44 left-8 right-8 z-10">
-          <div className={`rounded-2xl px-6 py-4 text-center text-lg font-medium backdrop-blur-md ${status.color}`}>
+        <motion.div 
+          className="absolute left-8 right-8 z-10"
+          initial={{ bottom: '11rem' }}
+          animate={{
+            bottom: isHovered ? '11rem' : '6rem',
+          }}
+          transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
+        >
+          <motion.div 
+            className={`rounded-2xl text-center font-medium backdrop-blur-md ${status.color}`}
+            initial={{ paddingLeft: '1.5rem', paddingRight: '1.5rem', paddingTop: '1rem', paddingBottom: '1rem' }}
+            animate={{
+              paddingLeft: isHovered ? '1.5rem' : '0.75rem',
+              paddingRight: isHovered ? '1.5rem' : '0.75rem',
+              paddingTop: isHovered ? '1rem' : '0.5rem',
+              paddingBottom: isHovered ? '1rem' : '0.5rem',
+              fontSize: isHovered ? '1.125rem' : '0.875rem',
+            }}
+            transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
+          >
             {status.text}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Controls - Bottom (Animates based on hover) */}

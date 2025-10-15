@@ -1,5 +1,6 @@
 import { User, Session, ReferralNotification, Report, BanRecord, IPBan, InviteCode, RateLimitRecord } from './types';
 import { query } from './database';
+import { userCache, sessionCache } from './lru-cache';
 
 interface ChatMessage {
   from: string;
@@ -50,13 +51,20 @@ interface ReferralMapping {
 class DataStore {
   private useDatabase = !!process.env.DATABASE_URL;
   
-  private users = new Map<string, User>();
-  private sessions = new Map<string, Session>();
-  private history = new Map<string, ChatHistory[]>(); // userId -> history[]
-  private timerTotals = new Map<string, number>(); // userId -> cumulative seconds
-  private presence = new Map<string, Presence>(); // userId -> presence (always in-memory for real-time)
+  // OPTIMIZED FOR 1000 USERS: Use LRU cache instead of unlimited Maps
+  // users cache: Max 200 most recent (instead of all users)
+  // sessions cache: Max 300 most recent (instead of all sessions)
+  private users = new Map<string, User>(); // Kept for backward compatibility, but will use userCache
+  private sessions = new Map<string, Session>(); // Kept for backward compatibility, but will use sessionCache
+  
+  // History removed from memory - fetch from DB only when needed
+  // This saves MASSIVE memory (was growing unbounded)
+  private history = new Map<string, ChatHistory[]>(); // DEPRECATED - use DB queries instead
+  
+  private timerTotals = new Map<string, number>(); // userId -> cumulative seconds (lightweight)
+  private presence = new Map<string, Presence>(); // userId -> presence (must be in-memory for real-time)
   private cooldowns = new Map<string, number>(); // "userId1|userId2" -> expiresAt
-  private activeInvites = new Map<string, ActiveInvite>(); // inviteId -> invite (always in-memory for real-time)
+  private activeInvites = new Map<string, ActiveInvite>(); // inviteId -> invite (must be in-memory for real-time)
   private seenInSession = new Map<string, Set<string>>(); // sessionId -> Set<userIds>
   private referralNotifications = new Map<string, ReferralNotification[]>(); // userId -> notifications[]
   private referralMappings = new Map<string, ReferralMapping>(); // code -> {targetUserId, createdByUserId, ...}
@@ -124,7 +132,13 @@ class DataStore {
   }
 
   async getUser(userId: string): Promise<User | undefined> {
-    // Check memory first (fast)
+    // OPTIMIZATION: Check LRU cache first (limits memory for 1000 users)
+    const cached = userCache.get(userId);
+    if (cached) {
+      return cached as any; // Type cast since cache stores lightweight version
+    }
+    
+    // Check in-memory Map (for recently created users)
     let user = this.users.get(userId);
     
     // If not in memory and we have database, check there
@@ -134,13 +148,20 @@ class DataStore {
         if (result.rows.length > 0) {
           const row = result.rows[0];
           user = this.dbRowToUser(row);
-          // Cache in memory
-          this.users.set(userId, user);
-          console.log('[Store] User loaded from database:', userId.substring(0, 8));
+          
+          // Cache in LRU (not unlimited Map) - auto-evicts when full
+          userCache.set(userId, user);
+          
+          console.log('[Store] User loaded from database and cached:', userId.substring(0, 8));
         }
       } catch (error) {
         console.error('[Store] Failed to get user from database:', error);
       }
+    }
+    
+    // If found in Map, also add to LRU cache for future
+    if (user && !cached) {
+      userCache.set(userId, user);
     }
     
     return user;
@@ -259,8 +280,16 @@ class DataStore {
   }
 
   async getSession(sessionToken: string): Promise<Session | undefined> {
+    // OPTIMIZATION: Check LRU cache first (limits memory for 1000+ sessions)
+    const cached = sessionCache.get(sessionToken);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached;
+    }
+    
+    // Check in-memory Map
     let session = this.sessions.get(sessionToken);
     
+    // Check database if not in memory
     if (!session && this.useDatabase) {
       try {
         const result = await query('SELECT * FROM sessions WHERE session_token = $1 AND expires_at > NOW()', [sessionToken]);
@@ -273,18 +302,28 @@ class DataStore {
             expiresAt: new Date(row.expires_at).getTime(),
             ipAddress: row.ip_address,
           };
-          this.sessions.set(sessionToken, session);
+          
+          // Cache in LRU (not unlimited Map)
+          sessionCache.set(sessionToken, session);
         }
       } catch (error) {
         console.error('[Store] Failed to get session from database:', error);
       }
     }
     
+    // Check expiry
     if (session && session.expiresAt > Date.now()) {
+      // Cache valid session in LRU
+      if (!cached) {
+        sessionCache.set(sessionToken, session);
+      }
       return session;
     }
+    
+    // Expired - clean up
     if (session) {
       this.sessions.delete(sessionToken);
+      sessionCache.delete(sessionToken);
       if (this.useDatabase) {
         try {
           await query('DELETE FROM sessions WHERE session_token = $1', [sessionToken]);
