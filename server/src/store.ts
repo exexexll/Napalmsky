@@ -241,6 +241,8 @@ class DataStore {
     if (user) {
       const updatedUser = { ...user, ...updates };
       this.users.set(userId, updatedUser);
+      // CRITICAL: Also update LRU cache immediately to prevent stale reads
+      userCache.set(userId, updatedUser);
       
       // Also update in database if available
       if (this.useDatabase) {
