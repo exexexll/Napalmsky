@@ -103,32 +103,51 @@ class DataStore {
 
   // User operations - with PostgreSQL support
   async createUser(user: User): Promise<void> {
-    if (this.useDatabase) {
-      try {
-        await query(
-          `INSERT INTO users (user_id, name, gender, account_type, email, password_hash, selfie_url, video_url, 
-           socials, paid_status, paid_at, payment_id, invite_code_used, my_invite_code, invite_code_uses_remaining,
-           ban_status, introduced_to, introduced_by, introduced_via_code)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
-          [
-            user.userId, user.name, user.gender, user.accountType, user.email || null,
-            user.password_hash || null, user.selfieUrl || null, user.videoUrl || null,
-            JSON.stringify(user.socials || {}), user.paidStatus || 'unpaid',
-            user.paidAt ? new Date(user.paidAt) : null, user.paymentId || null,
-            user.inviteCodeUsed || null, user.myInviteCode || null, user.inviteCodeUsesRemaining || 0,
-            user.banStatus || 'none', user.introducedTo || null, user.introducedBy || null,
-            user.introducedViaCode || null
-          ]
-        );
-        console.log('[Store] User created in database:', user.userId.substring(0, 8));
-      } catch (error) {
-        console.error('[Store] Failed to create user in database:', error);
-        console.warn('[Store] Continuing with memory-only storage for this user');
-        // Don't throw - allow memory fallback
-      }
-    }
-    // Always keep in memory for fast access and fallback
+    // CRITICAL: Always save to memory first (immediate availability)
     this.users.set(user.userId, user);
+    
+    // Then persist to PostgreSQL (with retry)
+    if (this.useDatabase) {
+      let retries = 3;
+      let lastError: any = null;
+      
+      while (retries > 0) {
+        try {
+          await query(
+            `INSERT INTO users (user_id, name, gender, account_type, email, password_hash, selfie_url, video_url, 
+             socials, paid_status, paid_at, payment_id, invite_code_used, my_invite_code, invite_code_uses_remaining,
+             ban_status, introduced_to, introduced_by, introduced_via_code)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+             ON CONFLICT (user_id) DO UPDATE SET
+               name = EXCLUDED.name,
+               paid_status = EXCLUDED.paid_status`,
+            [
+              user.userId, user.name, user.gender, user.accountType, user.email || null,
+              user.password_hash || null, user.selfieUrl || null, user.videoUrl || null,
+              JSON.stringify(user.socials || {}), user.paidStatus || 'unpaid',
+              user.paidAt ? new Date(user.paidAt) : null, user.paymentId || null,
+              user.inviteCodeUsed || null, user.myInviteCode || null, user.inviteCodeUsesRemaining || 0,
+              user.banStatus || 'none', user.introducedTo || null, user.introducedBy || null,
+              user.introducedViaCode || null
+            ]
+          );
+          console.log('[Store] ✅ User created in PostgreSQL:', user.userId.substring(0, 8));
+          return; // Success!
+        } catch (error: any) {
+          lastError = error;
+          retries--;
+          
+          if (retries > 0) {
+            console.warn(`[Store] User creation failed, retrying... (${3 - retries}/3)`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+      
+      // All retries failed
+      console.error('[Store] ❌ FAILED to create user in PostgreSQL after 3 attempts:', lastError?.message);
+      console.warn('[Store] ⚠️  User will work in memory-only mode (data lost on restart)');
+    }
   }
 
   async getUser(userId: string): Promise<User | undefined> {
