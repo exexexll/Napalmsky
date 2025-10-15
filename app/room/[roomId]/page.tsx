@@ -58,6 +58,9 @@ export default function RoomPage() {
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportError, setReportError] = useState('');
   
+  // Connecting phase tracking
+  const [connectionPhase, setConnectionPhase] = useState<'initializing' | 'gathering' | 'connecting' | 'connected'>('initializing');
+  
   // Refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -101,6 +104,7 @@ export default function RoomPage() {
       try {
         // 1. Request user media
         console.log('[Media] Requesting getUserMedia...');
+        setConnectionPhase('initializing');
         
         // Detect Safari for specific constraints
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -135,6 +139,8 @@ export default function RoomPage() {
 
         // 2. Fetch TURN credentials from backend (secure)
         console.log('[WebRTC] Fetching TURN credentials...');
+        setConnectionPhase('gathering');
+        
         let iceServers: RTCIceServer[] = [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:stun1.l.google.com:19302' }
@@ -224,15 +230,19 @@ export default function RoomPage() {
           console.log('[WebRTC] Connection state:', pc.connectionState);
           setConnectionState(pc.connectionState);
           
+          // Update connection phase
+          if (pc.connectionState === 'connecting') {
+            setConnectionPhase('connecting');
+          }
+          if (pc.connectionState === 'connected') {
+            setConnectionPhase('connected');
+            clearTimeout(connectionTimeout);
+            console.log('[WebRTC] ✓ Connection established - timer will start when remote track received');
+          }
+          
           if (pc.connectionState === 'failed') {
             clearTimeout(connectionTimeout);
             handleICEFailure();
-          }
-          
-          // Timer will start via useEffect when all conditions met
-          if (pc.connectionState === 'connected') {
-            clearTimeout(connectionTimeout); // Clear timeout on success
-            console.log('[WebRTC] ✓ Connection established - timer will start when remote track received');
           }
           
           if (pc.connectionState === 'disconnected') {
