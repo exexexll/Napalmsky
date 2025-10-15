@@ -73,11 +73,12 @@ function PaymentSuccessPageContent() {
               <button
                 onClick={() => {
                   setLoading(false);
-                  router.push('/main');
+                  // Redirect to onboarding, NOT main (unpaid users shouldn't bypass)
+                  router.push('/onboarding');
                 }}
                 className="rounded-xl bg-[#ff9b6b]/20 px-6 py-2 text-sm text-[#ff9b6b] hover:bg-[#ff9b6b]/30"
               >
-                Continue to App
+                Continue to Onboarding
               </button>
             </div>
           )}
