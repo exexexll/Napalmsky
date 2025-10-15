@@ -92,16 +92,21 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
   }, []);
 
   const handleSecondsChange = (value: string) => {
-    const num = parseInt(value.replace(/\D/g, '')) || 0;
-    setSeconds(Math.min(500, Math.max(0, num)));
+    const num = parseInt(value) || 0;
+    setSeconds(Math.min(500, Math.max(1, num)));
   };
+  
+  // Detect mobile for compact UI
+  const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-lg space-y-6 rounded-2xl bg-[#0a0a0c] p-8 shadow-2xl border-2 border-[#ff9b6b]/30"
+        className={`w-full max-w-lg space-y-6 rounded-2xl bg-[#0a0a0c] shadow-2xl border-2 border-[#ff9b6b]/30 ${
+          isMobile ? 'p-4' : 'p-8'
+        }`}
         role="alertdialog"
         aria-labelledby="callee-title"
         aria-describedby="callee-description"
@@ -170,11 +175,14 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
             Your preferred duration (seconds)
           </label>
           <input
-            type="text"
-            value={seconds.toString().padStart(3, '0')}
+            type="number"
+            value={seconds}
             onChange={(e) => handleSecondsChange(e.target.value)}
-            maxLength={3}
-            className="w-full rounded-xl bg-white/10 px-4 py-3 text-center font-mono text-2xl text-[#eaeaf0] focus:outline-none focus:ring-2 focus:ring-[#ff9b6b]"
+            min="1"
+            max="500"
+            className={`w-full rounded-xl bg-white/10 px-4 text-center font-mono text-[#eaeaf0] focus:outline-none focus:ring-2 focus:ring-[#ff9b6b] ${
+              isMobile ? 'py-2 text-xl' : 'py-3 text-2xl'
+            }`}
             aria-label="Your preferred call duration in seconds"
           />
           <p className="mt-2 text-xs text-[#eaeaf0]/50 text-center">
