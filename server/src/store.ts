@@ -151,16 +151,18 @@ class DataStore {
   }
 
   async getUser(userId: string): Promise<User | undefined> {
-    // OPTIMIZATION: Check LRU cache first (limits memory for 1000 users)
-    const cached = userCache.get(userId);
-    if (cached) {
-      return cached as any; // Type cast since cache stores lightweight version
-    }
-    
-    // Check in-memory Map (for recently created users)
+    // Check in-memory Map first (most recent updates)
     let user = this.users.get(userId);
     
-    // If not in memory and we have database, check there
+    // Then check LRU cache
+    if (!user) {
+      const cached = userCache.get(userId);
+      if (cached) {
+        user = cached as any;
+      }
+    }
+    
+    // If not in memory/cache and we have database, check there
     if (!user && this.useDatabase) {
       try {
         const result = await query('SELECT * FROM users WHERE user_id = $1', [userId]);
@@ -168,18 +170,16 @@ class DataStore {
           const row = result.rows[0];
           user = this.dbRowToUser(row);
           
-          // Cache in LRU (not unlimited Map) - auto-evicts when full
-          userCache.set(userId, user);
-          
-          console.log('[Store] User loaded from database and cached:', userId.substring(0, 8));
+          console.log('[Store] User loaded from database:', userId.substring(0, 8));
         }
       } catch (error) {
         console.error('[Store] Failed to get user from database:', error);
       }
     }
     
-    // If found in Map, also add to LRU cache for future
-    if (user && !cached) {
+    // Always update cache with latest data
+    if (user) {
+      this.users.set(userId, user);
       userCache.set(userId, user);
     }
     
