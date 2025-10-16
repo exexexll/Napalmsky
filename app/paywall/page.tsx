@@ -19,6 +19,15 @@ function PaywallPageContent() {
 
   // Check if already paid
   useEffect(() => {
+    // CRITICAL FIX: Prevent redirect loop
+    const isRedirecting = sessionStorage.getItem('redirecting_to_paywall');
+    if (isRedirecting) {
+      // We were just redirected here, clear flag and stay
+      sessionStorage.removeItem('redirecting_to_paywall');
+      console.log('[Paywall] Arrived from redirect - staying on paywall');
+      return;
+    }
+
     const session = getSession();
     if (!session) {
       router.push('/onboarding');
@@ -32,9 +41,9 @@ function PaywallPageContent() {
       .then(res => res.json())
       .then(data => {
         if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
-          // Already paid, continue to onboarding to complete profile
-          console.log('[Paywall] Already paid - redirecting to onboarding');
-          router.push('/onboarding');
+          // Already paid, redirect to main (NOT onboarding to avoid loop!)
+          console.log('[Paywall] Already paid - redirecting to main');
+          router.push('/main');
         }
       })
       .catch(err => console.error('Failed to check payment status:', err));

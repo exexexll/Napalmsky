@@ -49,6 +49,12 @@ function OnboardingPageContent() {
 
   // Check for referral code and invite code in URL
   useEffect(() => {
+    const hasCheckedRef = { current: false };
+    
+    // CRITICAL FIX: Prevent infinite loop by only checking once
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+    
     const ref = searchParams.get('ref');
     const invite = searchParams.get('inviteCode');
     
@@ -93,8 +99,10 @@ function OnboardingPageContent() {
               router.push('/main');
             }
           } else if (hasCompletedProfile && !hasPaid) {
-            // Profile complete but NOT paid - redirect to paywall
+            // Profile complete but NOT paid - redirect to paywall ONLY ONCE
             console.log('[Onboarding] Complete profile but unpaid - redirecting to paywall');
+            // Add flag to prevent loop
+            sessionStorage.setItem('redirecting_to_paywall', 'true');
             router.push('/paywall');
           } else {
             // Profile incomplete - resume onboarding

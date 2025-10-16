@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Container } from '@/components/Container';
@@ -14,8 +14,13 @@ function PaymentSuccessPageContent() {
   const [myInviteCode, setMyInviteCode] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [retryCount, setRetryCount] = useState(0);
+  const hasCheckedRef = useRef(false); // Prevent multiple checks
 
   useEffect(() => {
+    // CRITICAL FIX: Prevent infinite loop by checking only once
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+
     const session = getSession();
     if (!session) {
       router.push('/onboarding');
@@ -28,8 +33,14 @@ function PaymentSuccessPageContent() {
       return;
     }
 
-    // Wait a bit for webhook to process, then fetch status
-    setTimeout(() => {
+    // Recursive retry function (fixes infinite loop)
+    const checkPaymentStatus = (attempt: number = 0) => {
+      if (attempt >= 5) {
+        console.warn('[Payment] Max retries reached - webhook may not be working');
+        setLoading(false);
+        return;
+      }
+
       fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/status`, {
         headers: { 'Authorization': `Bearer ${session.sessionToken}` },
       })
@@ -37,29 +48,26 @@ function PaymentSuccessPageContent() {
         .then(data => {
           if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
             setMyInviteCode(data.myInviteCode || '');
-            // Use Railway URL directly for QR code (fallback to environment variable)
             const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'https://napalmsky-production.up.railway.app';
             setQrCodeUrl(`${apiBase}/payment/qr/${data.myInviteCode}`);
-            console.log('[Payment] QR URL:', `${apiBase}/payment/qr/${data.myInviteCode}`);
+            console.log('[Payment] ✅ Payment verified, code:', data.myInviteCode);
             setLoading(false);
-          } else if (retryCount < 5) {
-            // Payment not processed yet, retry (max 5 times = 10 seconds)
-            console.log(`Payment not processed yet, retrying... (${retryCount + 1}/5)`);
-            // DON'T reload - just increment and useEffect will re-run!
-            setRetryCount(prev => prev + 1);
           } else {
-            // Max retries reached - webhook probably isn't working
-            console.warn('Webhook not processing. Allowing user to continue anyway.');
-            setLoading(false);
-            // Show message to user that they can continue
+            // Not processed yet, retry after delay
+            console.log(`[Payment] Retry ${attempt + 1}/5 - payment not processed yet`);
+            setRetryCount(attempt + 1);
+            setTimeout(() => checkPaymentStatus(attempt + 1), 2000);
           }
         })
         .catch(err => {
-          console.error('Failed to check payment status:', err);
+          console.error('[Payment] Status check failed:', err);
           setLoading(false);
         });
-    }, 2000); // Wait 2 seconds for webhook
-  }, [router, searchParams, retryCount]);
+    };
+
+    // Start checking after 2 second delay
+    setTimeout(() => checkPaymentStatus(0), 2000);
+  }, [router, searchParams]); // FIXED: Removed retryCount from dependencies!
 
   if (loading) {
     return (
@@ -151,10 +159,10 @@ function PaymentSuccessPageContent() {
 
             {/* Continue Button - Minimal */}
             <button
-              onClick={() => router.push('/onboarding')}
+              onClick={() => router.push('/main')}
               className="focus-ring w-full rounded-xl bg-[#ff9b6b] px-6 py-3 font-medium text-[#0a0a0c] transition-opacity hover:opacity-90"
             >
-              Continue to Profile Setup →
+              Continue to App →
             </button>
           </motion.div>
         </div>
