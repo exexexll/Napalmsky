@@ -411,12 +411,7 @@ function OnboardingPageContent() {
         setUploadProgress(percent);
       })
         .then((data: any) => {
-          console.log('[Onboarding] ========================================');
-          console.log('[Onboarding] ✅ VIDEO UPLOAD SUCCESS');
-          console.log('[Onboarding] URL:', data.videoUrl);
-          console.log('[Onboarding] Current step:', step);
-          console.log('[Onboarding] About to set step to permanent...');
-          console.log('[Onboarding] ========================================');
+          console.log('[Onboarding] ✅ Video uploaded:', data.videoUrl);
           
           setUploadProgress(100);
           setTimeout(() => {
@@ -430,86 +425,27 @@ function OnboardingPageContent() {
             setStream(null);
           }
           
-          // CRITICAL: Set step to permanent
+          // SIMPLE: Always go to permanent step for ALL users (referral same as normal)
           setStep('permanent');
           setLoading(false);
-          
-          console.log('[Onboarding] ✅ Step set to: permanent');
-          console.log('[Onboarding] ✅ Loading set to: false');
         })
         .catch((err) => {
-          console.error('[Onboarding] ❌ VIDEO UPLOAD FAILED:', err);
+          console.error('[Onboarding] Upload error:', err);
           setError(err.message);
           setStep('permanent');
           setLoading(false);
         });
     }
-  }, [recordedChunks, isRecording, sessionToken, stream, step]); // stream not needed - using state updater
+  }, [recordedChunks, isRecording, sessionToken, stream]); // stream not needed - using state updater
 
   /**
-   * Step 4: From permanent step - check if referral to show introduction
+   * Step 4: Skip permanent account step - go to main
    */
-  const handleSkip = async () => {
-    console.log('[Onboarding] === SKIP BUTTON CLICKED ===');
-    
-    // Check if this is a REFERRAL user
-    const storedRef = sessionStorage.getItem('onboarding_ref_code');
-    console.log('[Onboarding] Checking referral context:');
-    console.log('  targetUser:', targetUser ? targetUser.name : 'none');
-    console.log('  storedRef:', storedRef);
-    console.log('  referralCode:', referralCode);
-    
-    if (targetUser || storedRef || referralCode) {
-      // REFERRAL ROUTE: Show introduction screen
-      console.log('[Onboarding] 🎯 REFERRAL user detected - preparing introduction');
-      
-      if (targetUser) {
-        // Already have target - show introduction immediately
-        console.log('[Onboarding] Target already set:', targetUser.name);
-        setStep('introduction');
-        return;
-      }
-      
-      // Need to fetch target user
-      const refToUse = storedRef || referralCode;
-      if (!refToUse) {
-        console.error('[Onboarding] No ref code available!');
-        router.push('/main');
-        return;
-      }
-      
-      console.log('[Onboarding] Fetching target user for ref:', refToUse);
-      setLoading(true);
-      
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${refToUse}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('[Onboarding] ✅ Target user fetched successfully:', data);
-        
-        setTargetUser(data.targetUser);
-        setReferrerName(data.createdByName || data.introducedBy);
-        setTargetOnline(data.targetOnline || false);
-        setLoading(false);
-        
-        console.log('[Onboarding] Showing introduction screen for:', data.targetUser?.name);
-        setStep('introduction');
-      } catch (err) {
-        console.error('[Onboarding] ❌ Failed to fetch target user:', err);
-        setLoading(false);
-        // Fallback: go to main anyway
-        console.log('[Onboarding] Fallback - going to main');
-        router.push('/main');
-      }
-    } else {
-      // REGULAR ROUTE: Go to main
-      console.log('[Onboarding] 👤 REGULAR user - going to main');
-      router.push('/main');
-    }
+  const handleSkip = () => {
+    // SIMPLIFIED: All users (referral or normal) go to main
+    // Referral data is tracked in backend, will show "Introduced by X" badge in matchmaking
+    console.log('[Onboarding] Skipping permanent account - going to main');
+    router.push('/main');
   };
 
   /**
@@ -818,17 +754,7 @@ function OnboardingPageContent() {
               </motion.div>
             )}
 
-            {/* Introduction Screen */}
-            {step === 'introduction' && targetUser && (
-              <IntroductionComplete
-                targetUser={targetUser}
-                introducedBy={referrerName || 'a friend'}
-                isTargetOnline={targetOnline}
-                referralCode={referralCode || ''}
-                onCallNow={handleCallTarget}
-                onSkip={handleSkipIntroduction}
-              />
-            )}
+            {/* Introduction Screen - REMOVED: Referral users follow normal flow now */}
 
             {/* Step 4: Make Permanent */}
             {step === 'permanent' && (
