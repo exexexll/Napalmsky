@@ -469,23 +469,56 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     }
   }, [directMatchTarget, users, autoInviteSent]);
 
-  // CRITICAL: Handle page unload while waiting (prevents cooldown escape)
+  // CRITICAL: Handle page visibility changes (tab switch, minimize, etc.)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page/tab becoming hidden
+        const waitingInvites = Object.entries(inviteStatuses)
+          .filter(([_, status]) => status === 'waiting');
+        
+        if (waitingInvites.length > 0 && socketRef.current) {
+          console.warn('[Matchmake] ⚠️ Page hidden while waiting - auto-rescinding');
+          
+          // Send rescind for all waiting invites
+          waitingInvites.forEach(([userId]) => {
+            socketRef.current.emit('call:rescind', { toUserId: userId });
+          });
+          
+          // Clear waiting states locally
+          setInviteStatuses(prev => {
+            const newStatuses = { ...prev };
+            waitingInvites.forEach(([userId]) => {
+              delete newStatuses[userId];
+            });
+            return newStatuses;
+          });
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [inviteStatuses]);
+  
+  // CRITICAL: Handle page unload/close (backup for hard closes)
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       const waitingInvites = Object.entries(inviteStatuses)
         .filter(([_, status]) => status === 'waiting');
       
       if (waitingInvites.length > 0 && socketRef.current) {
-        console.warn('[Matchmake] ⚠️ Page unload while waiting - auto-rescinding');
-        
-        // Auto-rescind all waiting invites
+        // Send rescind immediately (synchronous)
         waitingInvites.forEach(([userId]) => {
           socketRef.current.emit('call:rescind', { toUserId: userId });
         });
         
-        // Show browser confirmation dialog
+        // Force warning dialog (prevents accidental close)
         e.preventDefault();
-        e.returnValue = 'You have a pending call request. Leaving will cancel it and set a 1-hour cooldown.';
+        e.returnValue = 'You are waiting for a response. Closing will cancel and set a 1-hour cooldown.';
         return e.returnValue;
       }
     };
@@ -613,6 +646,9 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
           <button
             onClick={handleClose}
             disabled={!!incomingInvite}
+            style={{
+              display: Object.values(inviteStatuses).includes('waiting') ? 'none' : 'block'
+            }}
             className="focus-ring rounded-full bg-black/60 p-3 backdrop-blur-md transition-all hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Close matchmaking"
             title={incomingInvite ? "Cannot close while receiving a call" : "Close matchmaking"}
