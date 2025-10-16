@@ -134,32 +134,34 @@ export default function ManifestoPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Duplicate slang for infinite scroll effect
-  const slangRow1 = [...slangTerms, ...slangTerms, ...slangTerms];
-  const slangRow2 = [...slangTerms, ...slangTerms, ...slangTerms];
-  const slangRow3 = [...slangTerms, ...slangTerms, ...slangTerms];
-  const slangRow4 = [...slangTerms, ...slangTerms, ...slangTerms];
+  // Duplicate slang for infinite scroll
+  const slangRow = [...slangTerms, ...slangTerms, ...slangTerms];
 
   return (
     <main id="main" className="relative min-h-screen bg-[#0a0a0c] overflow-hidden">
-      {/* Animated Slang Background - Multiple Rows */}
-      <div className="absolute inset-0 z-0 overflow-hidden opacity-10">
-        {/* Row 1 - Moving Left */}
-        <div className="absolute top-[10%] left-0 whitespace-nowrap">
+      {/* Top Right Spotlight Effect */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] z-0">
+        <div className="w-full h-full bg-gradient-radial from-[#ff9b6b]/15 via-[#ff9b6b]/5 to-transparent blur-3xl" />
+      </div>
+
+      {/* Animated Slang Background - Full Page Coverage */}
+      <div className="absolute inset-0 z-0 overflow-hidden opacity-8">
+        {/* Row 1 - Top - Moving Left */}
+        <div className="absolute top-[5%] left-0 whitespace-nowrap">
           <motion.div
-            className="flex gap-6"
-            animate={{ x: [0, -3000] }}
+            className="flex gap-4"
+            animate={{ x: [0, -2400] }}
             transition={{
-              duration: 60,
+              duration: 50,
               repeat: Infinity,
               ease: "linear",
             }}
           >
-            {slangRow1.map((slang, i) => (
+            {slangRow.map((slang, i) => (
               <div
                 key={`row1-${i}`}
-                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
-                           font-mono text-2xl font-bold text-white/40"
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
               >
                 {slang}
               </div>
@@ -168,21 +170,21 @@ export default function ManifestoPage() {
         </div>
 
         {/* Row 2 - Moving Right */}
-        <div className="absolute top-[30%] left-0 whitespace-nowrap">
+        <div className="absolute top-[18%] left-0 whitespace-nowrap">
           <motion.div
-            className="flex gap-6"
-            animate={{ x: [-3000, 0] }}
+            className="flex gap-4"
+            animate={{ x: [-2400, 0] }}
             transition={{
-              duration: 70,
+              duration: 60,
               repeat: Infinity,
               ease: "linear",
             }}
           >
-            {slangRow2.map((slang, i) => (
+            {slangRow.map((slang, i) => (
               <div
                 key={`row2-${i}`}
-                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
-                           font-mono text-2xl font-bold text-white/40"
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
               >
                 {slang}
               </div>
@@ -191,21 +193,21 @@ export default function ManifestoPage() {
         </div>
 
         {/* Row 3 - Moving Left */}
-        <div className="absolute top-[50%] left-0 whitespace-nowrap">
+        <div className="absolute top-[31%] left-0 whitespace-nowrap">
           <motion.div
-            className="flex gap-6"
-            animate={{ x: [0, -3000] }}
+            className="flex gap-4"
+            animate={{ x: [0, -2400] }}
             transition={{
-              duration: 55,
+              duration: 45,
               repeat: Infinity,
               ease: "linear",
             }}
           >
-            {slangRow3.map((slang, i) => (
+            {slangRow.map((slang, i) => (
               <div
                 key={`row3-${i}`}
-                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
-                           font-mono text-2xl font-bold text-white/40"
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
               >
                 {slang}
               </div>
@@ -214,21 +216,113 @@ export default function ManifestoPage() {
         </div>
 
         {/* Row 4 - Moving Right */}
+        <div className="absolute top-[44%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-4"
+            animate={{ x: [-2400, 0] }}
+            transition={{
+              duration: 55,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow.map((slang, i) => (
+              <div
+                key={`row4-${i}`}
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Row 5 - Moving Left */}
+        <div className="absolute top-[57%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-4"
+            animate={{ x: [0, -2400] }}
+            transition={{
+              duration: 50,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow.map((slang, i) => (
+              <div
+                key={`row5-${i}`}
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Row 6 - Moving Right */}
         <div className="absolute top-[70%] left-0 whitespace-nowrap">
           <motion.div
-            className="flex gap-6"
-            animate={{ x: [-3000, 0] }}
+            className="flex gap-4"
+            animate={{ x: [-2400, 0] }}
             transition={{
               duration: 65,
               repeat: Infinity,
               ease: "linear",
             }}
           >
-            {slangRow4.map((slang, i) => (
+            {slangRow.map((slang, i) => (
               <div
-                key={`row4-${i}`}
-                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
-                           font-mono text-2xl font-bold text-white/40"
+                key={`row6-${i}`}
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Row 7 - Moving Left */}
+        <div className="absolute top-[83%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-4"
+            animate={{ x: [0, -2400] }}
+            transition={{
+              duration: 55,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow.map((slang, i) => (
+              <div
+                key={`row7-${i}`}
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Row 8 - Bottom - Moving Right */}
+        <div className="absolute top-[96%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-4"
+            animate={{ x: [-2400, 0] }}
+            transition={{
+              duration: 60,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow.map((slang, i) => (
+              <div
+                key={`row8-${i}`}
+                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                           font-mono text-lg font-bold text-white/30"
               >
                 {slang}
               </div>
@@ -240,7 +334,7 @@ export default function ManifestoPage() {
       {/* Main Content - Overlaid on top */}
       <div className="relative z-10 min-h-screen flex flex-col items-start justify-center px-6 sm:px-12 lg:px-20 py-20">
         {/* Left-aligned container */}
-        <div className="max-w-7xl w-full text-left space-y-1 sm:space-y-2 mb-12 sm:mb-16">
+        <div className="max-w-7xl w-full text-left space-y-1 sm:space-y-2 mb-8 sm:mb-12">
           {/* Just have FUN!! - Large Display */}
           <motion.h1
             initial={{ opacity: 0, x: -100 }}
@@ -285,43 +379,37 @@ export default function ManifestoPage() {
           </motion.h2>
         </div>
 
-        {/* Rotating Sentence Area - Left aligned with persistent underline */}
+        {/* Rotating Sentence Area - No underline, rolling blur animation */}
         <div className="max-w-7xl w-full text-left mb-16 sm:mb-20">
-          {/* Persistent Underline - Always visible, closer to text */}
-          <div className="relative inline-block">
-            <div className="border-b-4 sm:border-b-6 border-[#ff9b6b] pb-1 min-w-[300px] sm:min-w-[500px] md:min-w-[700px] lg:min-w-[900px]">
-              {/* Rotating Text with Swoosh Animation */}
-              <div className="min-h-[100px] sm:min-h-[120px] md:min-h-[150px] lg:min-h-[180px] flex items-center justify-start">
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={currentReasonIndex}
-                    initial={{ 
-                      opacity: 0, 
-                      x: -150,
-                      filter: 'blur(10px)',
-                    }}
-                    animate={{ 
-                      opacity: 1, 
-                      x: 0,
-                      filter: 'blur(0px)',
-                    }}
-                    exit={{ 
-                      opacity: 0, 
-                      x: 150,
-                      filter: 'blur(10px)',
-                    }}
-                    transition={{ 
-                      duration: 0.7,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="font-inter text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl 
-                               font-light text-[#eaeaf0] leading-tight"
-                  >
-                    {meetPeopleReasons[currentReasonIndex]}
-                  </motion.p>
-                </AnimatePresence>
-              </div>
-            </div>
+          <div className="min-h-[100px] sm:min-h-[120px] md:min-h-[150px] lg:min-h-[180px] flex items-center justify-start">
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={currentReasonIndex}
+                initial={{ 
+                  opacity: 0,
+                  scale: 0.9,
+                  filter: 'blur(20px)',
+                }}
+                animate={{ 
+                  opacity: 1,
+                  scale: 1,
+                  filter: 'blur(0px)',
+                }}
+                exit={{ 
+                  opacity: 0,
+                  scale: 0.9,
+                  filter: 'blur(20px)',
+                }}
+                transition={{ 
+                  duration: 0.8,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className="font-inter text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl 
+                           font-light text-[#eaeaf0] leading-tight max-w-[90%]"
+              >
+                {meetPeopleReasons[currentReasonIndex]}
+              </motion.p>
+            </AnimatePresence>
           </div>
         </div>
       </div>
