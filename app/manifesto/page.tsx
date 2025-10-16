@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Container } from '@/components/Container';
+import Image from 'next/image';
 
 const meetPeopleReasons = [
   "to complain about professors.",
@@ -127,79 +127,132 @@ export default function ManifestoPage() {
 
   return (
     <main id="main" className="relative min-h-screen bg-[#0a0a0c] overflow-hidden">
-      <Container>
-        <div className="min-h-screen flex flex-col items-center justify-center py-20">
-          {/* Just have FUN!! */}
+      {/* Magazine Cover Layout - Compact, Editorial Style */}
+      <div className="min-h-screen flex flex-col items-end justify-center px-6 sm:px-12 lg:px-20 py-20">
+        {/* Right-aligned container */}
+        <div className="max-w-7xl w-full text-right space-y-2 sm:space-y-3 mb-16 sm:mb-20">
+          {/* Just have FUN!! - Large Display */}
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="font-playfair text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-[#eaeaf0] mb-12 sm:mb-16 text-center"
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ 
+              duration: 1,
+              ease: [0.22, 1, 0.36, 1], // Custom easing for swoosh
+            }}
+            className="font-playfair text-7xl sm:text-8xl md:text-9xl lg:text-[12rem] xl:text-[14rem] 
+                       font-bold text-[#eaeaf0] leading-[0.85] tracking-tight"
           >
-            Just have FUN!!
+            Just have
+          </motion.h1>
+          
+          <motion.h1
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ 
+              duration: 1,
+              delay: 0.1,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            className="font-playfair text-7xl sm:text-8xl md:text-9xl lg:text-[12rem] xl:text-[14rem] 
+                       font-bold text-[#eaeaf0] leading-[0.85] tracking-tight"
+          >
+            FUN!!
           </motion.h1>
 
-          {/* Meet People: */}
+          {/* Meet People: - Medium accent */}
           <motion.h2
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="font-playfair text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-[#ff9b6b] mb-8 sm:mb-12 text-center"
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ 
+              duration: 1,
+              delay: 0.2,
+              ease: [0.22, 1, 0.36, 1],
+            }}
+            className="font-playfair text-4xl sm:text-5xl md:text-6xl lg:text-7xl 
+                       font-bold text-[#ff9b6b] leading-tight pt-4 sm:pt-6"
           >
             Meet People:
           </motion.h2>
-
-          {/* Rotating sentence with underline blank space effect */}
-          <div className="w-full max-w-4xl mb-16 sm:mb-24 min-h-[200px] sm:min-h-[250px] flex items-center justify-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentReasonIndex}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="text-center"
-              >
-                <p className="font-inter text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium text-[#eaeaf0] leading-relaxed">
-                  <span className="inline-block border-b-4 border-[#ff9b6b] pb-2">
-                    {meetPeopleReasons[currentReasonIndex]}
-                  </span>
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* The experience should speak for itself lol */}
-          <motion.p
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="font-playfair text-3xl sm:text-4xl md:text-5xl font-bold text-[#eaeaf0]/90 mb-16 sm:mb-20 text-center italic"
-          >
-            The experience should speak for itself lol
-          </motion.p>
-
-          {/* Love.webp GIF - Looping */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="w-full max-w-2xl"
-          >
-            <video
-              src="/Life.webp"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-full h-auto rounded-3xl shadow-2xl"
-            />
-          </motion.div>
-
-          {/* Spacer for bottom padding */}
-          <div className="h-24" />
         </div>
-      </Container>
+
+        {/* Rotating Sentence Area - Right aligned with persistent underline */}
+        <div className="max-w-7xl w-full text-right mb-12 sm:mb-16">
+          {/* Persistent Underline - Always visible */}
+          <div className="relative inline-block">
+            <div className="border-b-4 sm:border-b-6 border-[#ff9b6b] pb-2 sm:pb-3 min-w-[300px] sm:min-w-[500px] md:min-w-[700px] lg:min-w-[900px]">
+              {/* Rotating Text with Swoosh Animation */}
+              <div className="min-h-[100px] sm:min-h-[120px] md:min-h-[150px] lg:min-h-[180px] flex items-center justify-end">
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={currentReasonIndex}
+                    initial={{ 
+                      opacity: 0, 
+                      x: 150,
+                      filter: 'blur(10px)',
+                    }}
+                    animate={{ 
+                      opacity: 1, 
+                      x: 0,
+                      filter: 'blur(0px)',
+                    }}
+                    exit={{ 
+                      opacity: 0, 
+                      x: -150,
+                      filter: 'blur(10px)',
+                    }}
+                    transition={{ 
+                      duration: 0.7,
+                      ease: [0.16, 1, 0.3, 1], // Smooth swoosh easing
+                    }}
+                    className="font-inter text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl 
+                               font-light text-[#eaeaf0] leading-tight"
+                  >
+                    {meetPeopleReasons[currentReasonIndex]}
+                  </motion.p>
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* The experience should speak for itself lol - Small italic */}
+        <motion.p
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ 
+            duration: 1,
+            delay: 0.4,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className="max-w-7xl w-full text-right font-playfair text-xl sm:text-2xl md:text-3xl 
+                     font-medium text-[#eaeaf0]/70 italic mb-20 sm:mb-24"
+        >
+          The experience should speak for itself lol
+        </motion.p>
+      </div>
+
+      {/* Life.webp - Bottom Center, Outside main container */}
+      <div className="flex justify-center pb-16 sm:pb-20">
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 1,
+            delay: 0.6,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl px-6"
+        >
+          <Image
+            src="/Life.webp"
+            alt="Life animation"
+            width={800}
+            height={800}
+            className="w-full h-auto rounded-2xl shadow-2xl"
+            unoptimized // Important for animated WebP
+          />
+        </motion.div>
+      </div>
     </main>
   );
 }
