@@ -39,6 +39,7 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   const videoRef = useRef<HTMLVideoElement>(null);
   const waitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoMinimizeTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Detect mobile Safari for compact UI
   const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -46,7 +47,47 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   // Set mounted flag after initial render (prevents glitch on card change)
   useEffect(() => {
     setHasMounted(true);
-  }, [user.userId]); // Reset when user changes
+    
+    // MOBILE AUTO-MINIMIZE: After 1 second of no interaction, minimize UI to show just video
+    if (isMobile && inviteStatus !== 'waiting') {
+      // Clear any existing timer
+      if (autoMinimizeTimerRef.current) {
+        clearTimeout(autoMinimizeTimerRef.current);
+      }
+      
+      // Start fresh UI
+      setIsHovered(true);
+      
+      // Auto-minimize after 1 second
+      autoMinimizeTimerRef.current = setTimeout(() => {
+        console.log('[UserCard] Auto-minimizing UI for cleaner mobile view');
+        setIsHovered(false);
+      }, 1000);
+      
+      return () => {
+        if (autoMinimizeTimerRef.current) {
+          clearTimeout(autoMinimizeTimerRef.current);
+        }
+      };
+    }
+  }, [user.userId, isMobile, inviteStatus]); // Reset when user changes or status changes
+  
+  // On any user interaction, show full UI temporarily
+  const handleUserInteraction = () => {
+    if (isMobile && !isHovered) {
+      console.log('[UserCard] User interaction - showing full UI');
+      setIsHovered(true);
+      
+      // Auto-minimize again after 1 second
+      if (autoMinimizeTimerRef.current) {
+        clearTimeout(autoMinimizeTimerRef.current);
+      }
+      
+      autoMinimizeTimerRef.current = setTimeout(() => {
+        setIsHovered(false);
+      }, 1000);
+    }
+  };
 
   // Check if this card is showing the user themselves
   useEffect(() => {
@@ -205,39 +246,45 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   return (
     <div 
       className="relative flex h-full w-full flex-col overflow-hidden"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => !isMobile && setIsHovered(true)}
+      onMouseLeave={() => !isMobile && setIsHovered(false)}
+      onClick={handleUserInteraction}
+      onTouchStart={handleUserInteraction}
     >
-      {/* User Info Overlay - Top (Animates based on hover) - Mobile optimized */}
+      {/* User Info Overlay - Top (Animates based on hover) - Auto-minimizes on mobile */}
       <motion.div 
         className="absolute top-2 md:top-0 left-0 right-0 z-30"
-        initial={{ padding: isMobile ? '0.75rem' : '2rem' }}
+        initial={{ 
+          padding: isMobile ? '0.5rem' : '2rem',
+          opacity: 1
+        }}
         animate={{
-          padding: isHovered ? (isMobile ? '0.75rem' : '2rem') : (isMobile ? '0.5rem' : '1rem'),
+          padding: isHovered ? (isMobile ? '0.5rem' : '2rem') : (isMobile ? '0.25rem' : '1rem'),
+          opacity: isHovered ? 1 : (isMobile ? 0.7 : 1),
         }}
         transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
       >
         <motion.div 
-          className="flex items-center gap-4 rounded-2xl bg-black/70 backdrop-blur-md"
-          initial={{ padding: isMobile ? '0.75rem' : '1.5rem' }}
+          className="flex items-center gap-2 md:gap-4 rounded-xl md:rounded-2xl bg-black/70 backdrop-blur-md"
+          initial={{ padding: isMobile ? '0.5rem' : '1.5rem' }}
           animate={{
-            padding: isHovered ? (isMobile ? '0.75rem' : '1.5rem') : (isMobile ? '0.5rem' : '0.75rem'),
+            padding: isHovered ? (isMobile ? '0.5rem' : '1.5rem') : (isMobile ? '0.25rem' : '0.75rem'),
           }}
           transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
         >
-          {/* Profile Picture - Smaller on mobile */}
+          {/* Profile Picture - Much smaller on mobile when minimized */}
           <motion.div
             initial={{ 
-              width: isMobile ? '2.5rem' : '5rem', 
-              height: isMobile ? '2.5rem' : '5rem' 
+              width: isMobile ? '2rem' : '5rem', 
+              height: isMobile ? '2rem' : '5rem' 
             }}
             animate={{
-              width: isHovered ? (isMobile ? '2.5rem' : '5rem') : (isMobile ? '2rem' : '3rem'),
-              height: isHovered ? (isMobile ? '2.5rem' : '5rem') : (isMobile ? '2rem' : '3rem'),
+              width: isHovered ? (isMobile ? '2rem' : '5rem') : (isMobile ? '1.5rem' : '3rem'),
+              height: isHovered ? (isMobile ? '2rem' : '5rem') : (isMobile ? '1.5rem' : '3rem'),
             }}
             transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
             className="relative flex-shrink-0 overflow-hidden rounded-full border-white/30"
-            style={{ borderWidth: isHovered ? (isMobile ? '2px' : '4px') : '1px' }}
+            style={{ borderWidth: isHovered ? (isMobile ? '1px' : '4px') : '1px' }}
           >
             {user.selfieUrl ? (
               <Image
