@@ -18,14 +18,10 @@ export default function HomePage() {
               </h2>
               <div className="space-y-4 text-base leading-relaxed text-[#e6e6e9]/90 sm:text-lg">
                 <p>
-                  Napalm Sky is a speeddating platform built for authentic human connection in 
-                  an age of endless swiping. Every call lasts up to 500 seconds—no more, no less. 
-                  When the time runs out, the conversation ends, and you decide if you want to connect again.
+                  Napalm Sky is a speeddating platform built for authentic human connection in an age of endless swiping. Every call lasts up to 500 seconds—no more, no less. When the time runs out, the conversation ends, and you decide if you want to connect again.
                 </p>
                 <p>
-                  No profiles to curate. No photos to judge. Just two people, 500 seconds, and a 
-                  chance to see if something real can happen. Made by a hopeless romantic who believes 
-                  that genuine connection shouldn&apos;t require a perfect bio.
+                  No profiles to curate. No photos to judge. Just two people, 500 seconds, and a chance to see if something real can happen. Genuine connection shouldn&apos;t require a perfect bio.
                 </p>
               </div>
               <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -49,7 +45,7 @@ export default function HomePage() {
         <Container>
           <div className="text-center">
             <p className="text-sm text-[#e6e6e9]/70">
-              Made by a hopeless romantic.
+              Made with Passion
             </p>
             <div className="mt-4 flex items-center justify-center gap-6 text-sm">
               <Link 

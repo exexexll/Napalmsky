@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     'http://localhost:3000'
   ),
   title: 'Napalm Sky - Speed Dating Reimagined',
-  description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
+  description: 'Make Friends in SoCal— Live Matches, Zero Waiting, Infinite Possibilites.',
   keywords: ['speed dating', 'video chat', 'matchmaking', 'dating app', 'live dating'],
   authors: [{ name: 'Napalm Sky' }],
   icons: {
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Napalm Sky - Speed Dating Reimagined',
-    description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
+    description: 'Make Friends in SoCal— Live Matches, Zero Waiting, Infinite Possibilites.',
     url: 'https://napalmsky.com',
     siteName: 'Napalm Sky',
     images: [
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Napalm Sky - Speed Dating Reimagined',
-    description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
+    description: 'Make Friends in SoCal— Live Matches, Zero Waiting, Infinite Possibilites.',
     images: ['/Love.png'],
   },
   robots: {

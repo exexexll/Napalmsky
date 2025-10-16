@@ -128,7 +128,7 @@ export function Hero() {
 
           {/* Subtitle */}
           <p className="mb-8 font-inter text-base font-medium text-white/95 sm:text-lg lg:text-xl">
-            Speed Dating Reimagined — Live Matches, Zero Waiting.
+            Make Friends in SoCal— Live Matches, Zero Waiting, Infinite Possibilites.
           </p>
 
           {/* CTAs */}
