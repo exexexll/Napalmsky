@@ -130,6 +130,35 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
 
         console.log(`[Payment] ✅ Payment successful for user ${userId.substring(0, 8)}`);
 
+        // CRITICAL: Get user and ensure they exist in PostgreSQL FIRST
+        const user = await store.getUser(userId);
+        
+        if (!user) {
+          console.error('[Payment] ❌ User not found after payment:', userId);
+          return res.status(500).send('User not found');
+        }
+
+        // CRITICAL FIX: Ensure user exists in PostgreSQL before creating invite code
+        // This prevents foreign key constraint errors
+        if (process.env.DATABASE_URL) {
+          try {
+            const { query } = await import('./database');
+            // Force user creation in database if not already there
+            await query(
+              `INSERT INTO users (user_id, name, gender, account_type, paid_status, paid_at, payment_id, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+               ON CONFLICT (user_id) DO UPDATE SET
+                 paid_status = EXCLUDED.paid_status,
+                 paid_at = EXCLUDED.paid_at,
+                 payment_id = EXCLUDED.payment_id`,
+              [userId, user.name, user.gender, user.accountType, 'paid', new Date(), session.payment_intent as string]
+            );
+            console.log('[Payment] ✅ User ensured in PostgreSQL');
+          } catch (error) {
+            console.error('[Payment] Failed to ensure user in database:', error);
+          }
+        }
+
         // Mark user as paid (await for database)
         await store.updateUser(userId, {
           paidStatus: 'paid',
@@ -140,13 +169,6 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
         // Generate user's invite code (4 uses)
         const inviteCode = await generateSecureCode();
         console.log(`[Payment] Generated code: ${inviteCode}`);
-        
-        const user = await store.getUser(userId);
-        
-        if (!user) {
-          console.error('[Payment] ❌ User not found after payment:', userId);
-          return res.status(500).send('User not found');
-        }
 
         const code: InviteCode = {
           code: inviteCode,
@@ -160,9 +182,9 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req: a
           isActive: true,
         };
 
-        // CRITICAL FIX: await the invite code creation (was missing await!)
+        // Create invite code (now user exists in DB, no foreign key error!)
         await store.createInviteCode(code);
-        console.log(`[Payment] Code created in store`);
+        console.log(`[Payment] ✅ Code created in store and database`);
         
         // Store code on user profile (await for database)
         await store.updateUser(userId, {

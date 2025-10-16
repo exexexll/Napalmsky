@@ -70,29 +70,63 @@ export async function uploadSelfie(sessionToken: string, blob: Blob) {
   return res.json();
 }
 
-export async function uploadVideo(sessionToken: string, blob: Blob) {
+export async function uploadVideo(sessionToken: string, blob: Blob, onProgress?: (percent: number) => void) {
   // Ensure blob has correct MIME type by creating a new blob if needed
   const videoBlob = blob.type.startsWith('video/') 
     ? blob 
     : new Blob([blob], { type: 'video/webm' });
   
+  console.log('[Upload] Video size:', (videoBlob.size / 1024 / 1024).toFixed(2), 'MB');
+  
   const formData = new FormData();
   formData.append('video', videoBlob, 'intro.webm');
 
-  const res = await fetch(`${API_BASE}/media/video`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${sessionToken}`,
-    },
-    body: formData,
+  // OPTIMIZATION: Use XMLHttpRequest for progress tracking
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    // Track upload progress
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        onProgress(percent);
+        console.log('[Upload] Progress:', percent, '%');
+      }
+    });
+    
+    // Handle completion
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (e) {
+          reject(new Error('Invalid response format'));
+        }
+      } else {
+        try {
+          const error = JSON.parse(xhr.responseText);
+          reject(new Error(error.error || 'Upload failed'));
+        } catch (e) {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      }
+    });
+    
+    // Handle errors
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error during upload'));
+    });
+    
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Upload cancelled'));
+    });
+    
+    // Send request
+    xhr.open('POST', `${API_BASE}/media/video`);
+    xhr.setRequestHeader('Authorization', `Bearer ${sessionToken}`);
+    xhr.send(formData);
   });
-
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || 'Upload failed');
-  }
-
-  return res.json();
 }
 
 export async function getCurrentUser(sessionToken: string) {

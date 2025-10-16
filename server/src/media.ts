@@ -159,30 +159,31 @@ router.post('/video', requireAuth, (req: any, res) => {
       let videoUrl: string;
 
       if (useCloudinary) {
-        // Upload to Cloudinary
-        console.log('[Upload] Uploading video to Cloudinary...');
-        const result = await cloudinary.uploader.upload(req.file.path, {
-          folder: 'napalmsky/videos',
-          resource_type: 'video',
-          format: 'mp4',
-          transformation: [
-            { width: 1280, height: 720, crop: 'limit' },
-            { quality: 'auto:good' }
-          ]
-        });
-        videoUrl = result.secure_url;
+        // OPTIMIZATION: Return immediately, process in background
+        // This prevents 10-30 second wait for Cloudinary processing
+        const tempFilename = req.file.filename;
+        const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
+        const tempUrl = `${apiBase}/uploads/${tempFilename}`;
         
-        // Delete local temp file
-        fs.unlinkSync(req.file.path);
-        console.log(`[Upload] ✅ Video uploaded to Cloudinary for user ${req.userId.substring(0, 8)}`);
+        console.log('[Upload] File received, processing in background...');
+        
+        // Return temp URL immediately (user can continue)
+        videoUrl = tempUrl;
+        await store.updateUser(req.userId, { videoUrl: tempUrl });
+        
+        res.json({ videoUrl: tempUrl, processing: true });
+        
+        // BACKGROUND PROCESSING: Upload to Cloudinary async (don't block response)
+        processVideoInBackground(req.file.path, req.userId, tempFilename);
+        return;
       } else {
         // Fallback to local storage (for development)
         const apiBase = process.env.API_BASE || `${req.protocol}://${req.get('host')}`;
         videoUrl = `${apiBase}/uploads/${req.file.filename}`;
         console.log(`[Upload] ⚠️  Using local storage (Cloudinary not configured)`);
+        
+        await store.updateUser(req.userId, { videoUrl });
       }
-
-      await store.updateUser(req.userId, { videoUrl });
       
       // Check if this user was introduced via referral - send notification NOW (after profile complete)
       const user = await store.getUser(req.userId);
@@ -224,6 +225,52 @@ router.post('/video', requireAuth, (req: any, res) => {
     }
   });
 });
+
+/**
+ * Background video processing
+ * Uploads to Cloudinary without blocking the response
+ * Updates user with final URL when complete
+ */
+async function processVideoInBackground(
+  localPath: string, 
+  userId: string,
+  tempFilename: string
+) {
+  try {
+    console.log(`[Upload] 🔄 Starting background processing for user ${userId.substring(0, 8)}`);
+    
+    // Upload to Cloudinary with optimized settings
+    const result = await cloudinary.uploader.upload(localPath, {
+      folder: 'napalmsky/videos',
+      resource_type: 'video',
+      format: 'mp4',
+      // OPTIMIZED: Faster processing with eager transformation
+      eager: [
+        { width: 1280, height: 720, crop: 'limit', quality: 'auto:good' }
+      ],
+      eager_async: false, // Process immediately for faster availability
+    });
+    
+    const finalUrl = result.secure_url;
+    console.log(`[Upload] ✅ Cloudinary upload complete: ${finalUrl}`);
+    
+    // Update user with final Cloudinary URL
+    await store.updateUser(userId, { videoUrl: finalUrl });
+    console.log(`[Upload] ✅ User ${userId.substring(0, 8)} video URL updated to Cloudinary`);
+    
+    // Delete local temp file
+    if (fs.existsSync(localPath)) {
+      fs.unlinkSync(localPath);
+      console.log(`[Upload] 🗑️  Deleted temp file: ${tempFilename}`);
+    }
+    
+    console.log(`[Upload] 🎉 Background processing complete for user ${userId.substring(0, 8)}`);
+  } catch (error: any) {
+    console.error(`[Upload] ❌ Background processing failed for user ${userId.substring(0, 8)}:`, error.message);
+    // Keep temp URL - user can still use platform
+    // Admin can manually re-process failed videos if needed
+  }
+}
 
 export default router;
 

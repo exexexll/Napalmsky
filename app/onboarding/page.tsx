@@ -246,15 +246,41 @@ function OnboardingPageContent() {
         videoRef.current.srcObject = mediaStream;
       }
 
-      // Check MediaRecorder support and codecs
-      let mimeType = 'video/webm';
-      if (!MediaRecorder.isTypeSupported('video/webm')) {
-        if (MediaRecorder.isTypeSupported('video/mp4')) {
-          mimeType = 'video/mp4';
-        }
+      // OPTIMIZED: Use VP9 codec with low bitrate for faster uploads
+      // VP9 is 40-60% smaller than VP8 at same quality
+      // 1 Mbps = ~7.5 MB per 60s video (vs 20-30 MB default)
+      let options: MediaRecorderOptions | undefined;
+      
+      // Try VP9 first (best compression)
+      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        options = {
+          mimeType: 'video/webm;codecs=vp9',
+          videoBitsPerSecond: 1000000,  // 1 Mbps (optimized for mobile)
+          audioBitsPerSecond: 64000,    // 64 kbps (sufficient for voice)
+        };
+        console.log('[Video] Using VP9 codec at 1 Mbps');
+      } 
+      // Fallback to VP8 if VP9 not supported
+      else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+        options = {
+          mimeType: 'video/webm;codecs=vp8',
+          videoBitsPerSecond: 1500000,  // 1.5 Mbps for VP8
+          audioBitsPerSecond: 64000,
+        };
+        console.log('[Video] Using VP8 codec at 1.5 Mbps');
       }
-
-      const mediaRecorder = new MediaRecorder(mediaStream, { mimeType });
+      // Final fallback to default (no bitrate control)
+      else if (MediaRecorder.isTypeSupported('video/webm')) {
+        options = {
+          mimeType: 'video/webm',
+        };
+        console.warn('[Video] Using default WebM codec (no bitrate control)');
+      }
+      
+      // Create MediaRecorder with or without options
+      const mediaRecorder = options 
+        ? new MediaRecorder(mediaStream, options)
+        : new MediaRecorder(mediaStream);
       mediaRecorderRef.current = mediaRecorder;
       setRecordedChunks([]);
 
@@ -313,23 +339,25 @@ function OnboardingPageContent() {
         type: mediaRecorderRef.current?.mimeType || 'video/webm' 
       });
 
+      console.log('[Onboarding] Video blob size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+      
       setLoading(true);
+      setUploadProgress(0);
+      setShowUploadProgress(true); // Show immediately for better UX
       
-      // Show progress bar after 2 seconds if still uploading
-      const progressTimeout = setTimeout(() => {
-        setShowUploadProgress(true);
-      }, 2000);
-      
-      // Simulate progress (Cloudinary upload doesn't report real progress)
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 3, 90));
-      }, 500);
-      
-      uploadVideo(sessionToken, blob)
-        .then(() => {
+      // OPTIMIZED: Use real progress tracking from XMLHttpRequest
+      uploadVideo(sessionToken, blob, (percent) => {
+        setUploadProgress(percent);
+      })
+        .then((data: any) => {
+          console.log('[Onboarding] Video uploaded:', data.videoUrl);
+          
+          // If processing in background, show completion immediately
+          if (data.processing) {
+            console.log('[Onboarding] Video processing in background - user can continue!');
+          }
+          
           setUploadProgress(100);
-          clearTimeout(progressTimeout);
-          clearInterval(progressInterval);
           
           setTimeout(() => {
             setShowUploadProgress(false);
