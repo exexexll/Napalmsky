@@ -102,9 +102,19 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   useEffect(() => {
     if (videoRef.current) {
       if (isActive) {
-        videoRef.current.play().catch(() => {});
+        // Unmute and play when card becomes active
+        videoRef.current.muted = false;
+        videoRef.current.volume = 1.0;
+        videoRef.current.play().catch((err) => {
+          console.log('[UserCard] Video autoplay blocked, trying muted:', err);
+          // Fallback: play muted if autoplay blocked
+          videoRef.current!.muted = true;
+          videoRef.current!.play().catch(() => {});
+        });
       } else {
+        // Pause and mute when card becomes inactive for seamless transition
         videoRef.current.pause();
+        videoRef.current.muted = true;
       }
     }
   }, [isActive]);
@@ -368,7 +378,6 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
             ref={videoRef}
             src={user.videoUrl}
             loop
-            muted
             playsInline
             className="h-full w-full object-cover"
           />

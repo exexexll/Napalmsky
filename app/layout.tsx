@@ -30,6 +30,11 @@ export const metadata: Metadata = {
   description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
   keywords: ['speed dating', 'video chat', 'matchmaking', 'dating app', 'live dating'],
   authors: [{ name: 'Napalm Sky' }],
+  icons: {
+    icon: '/Minimalist Sunset Icon Design.png',
+    apple: '/Minimalist Sunset Icon Design.png',
+    shortcut: '/Minimalist Sunset Icon Design.png',
+  },
   openGraph: {
     title: 'Napalm Sky - Speed Dating Reimagined',
     description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
@@ -37,7 +42,7 @@ export const metadata: Metadata = {
     siteName: 'Napalm Sky',
     images: [
       {
-        url: '/public/image.jpg',
+        url: '/Minimalist Sunset Icon Design.png',
         width: 1200,
         height: 630,
         alt: 'Napalm Sky',
@@ -50,7 +55,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Napalm Sky - Speed Dating Reimagined',
     description: 'Speed Dating Reimagined — Live Matches, Zero Waiting.',
-    images: ['/public/image.jpg'],
+    images: ['/Minimalist Sunset Icon Design.png'],
   },
   robots: {
     index: true,
@@ -69,6 +74,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
+      <head>
+        <link rel="icon" href="/Minimalist Sunset Icon Design.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/Minimalist Sunset Icon Design.png" />
+      </head>
       <body className="font-inter">
         <a href="#main" className="skip-link">
           Skip to main content
