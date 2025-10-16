@@ -408,114 +408,98 @@ function OnboardingPageContent() {
       uploadVideo(sessionToken, blob, (percent) => {
         setUploadProgress(percent);
       })
-        .then(async (data: any) => {
-          console.log('[Onboarding] Video uploaded:', data.videoUrl);
-          
-          // If processing in background, show completion immediately
-          if (data.processing) {
-            console.log('[Onboarding] Video processing in background - user can continue!');
-          }
+        .then((data: any) => {
+          console.log('[Onboarding] ✅ Video uploaded:', data.videoUrl);
           
           setUploadProgress(100);
-          
           setTimeout(() => {
             setShowUploadProgress(false);
             setUploadProgress(0);
-          }, 1000);
+          }, 500);
           
-          // Stream already stopped in stopVideoRecording, but double-check
-          setStream(prevStream => {
-            if (prevStream) {
-              console.log('[Onboarding] Stopping any remaining camera/mic streams');
-              prevStream.getTracks().forEach(track => {
-                if (track.readyState === 'live') {
-                  track.stop();
-                }
-              });
-            }
-            return null;
-          });
-          
-          // After video upload: Decide next step
-          // REGULAR users → permanent step
-          // REFERRAL users → introduction screen
-          
-          // Check if referral user
-          const storedRef = sessionStorage.getItem('onboarding_ref_code');
-          
-          if (targetUser) {
-            // REFERRAL: Target already set - show introduction
-            console.log('[Onboarding] Referral user with targetUser - showing introduction');
-            setStep('introduction');
-          } else if (storedRef || referralCode) {
-            // REFERRAL: Have ref code - fetch target then show introduction  
-            console.log('[Onboarding] Referral user - fetching target...');
-            const refToUse = storedRef || referralCode!;
-            
-            fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${refToUse}`)
-              .then(res => res.json())
-              .then(data => {
-                console.log('[Onboarding] Target loaded:', data.targetUser?.name);
-                setTargetUser(data.targetUser);
-                setReferrerName(data.createdByName || data.introducedBy);
-                setTargetOnline(data.targetOnline || false);
-                setStep('introduction');
-              })
-              .catch(e => {
-                console.error('[Onboarding] Fetch failed:', e);
-                setStep('permanent'); // Fallback
-              });
-            
-            // Set permanent temporarily while fetching (prevents black screen)
-            setStep('permanent');
-          } else {
-            // REGULAR: No referral - show permanent step
-            console.log('[Onboarding] Regular user - showing permanent');
-            setStep('permanent');
+          // Stop camera
+          if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
           }
+          
+          // SIMPLE FIX: Always go to permanent step
+          // Referral introduction will be handled when user clicks Skip
+          console.log('[Onboarding] Video complete - going to permanent step');
+          setStep('permanent');
+          setLoading(false);
         })
-        .catch((err) => setError(err.message))
-        .finally(() => setLoading(false));
+        .catch((err) => {
+          console.error('[Onboarding] Upload error:', err);
+          setError(err.message);
+          setStep('permanent'); // Always set step even on error
+          setLoading(false);
+        });
     }
-  }, [recordedChunks, isRecording, sessionToken, targetUser, router]); // stream not needed - using state updater
+  }, [recordedChunks, isRecording, sessionToken, stream]); // stream not needed - using state updater
 
   /**
    * Step 4: From permanent step - check if referral to show introduction
    */
   const handleSkip = async () => {
+    console.log('[Onboarding] === SKIP BUTTON CLICKED ===');
+    
     // Check if this is a REFERRAL user
     const storedRef = sessionStorage.getItem('onboarding_ref_code');
+    console.log('[Onboarding] Checking referral context:');
+    console.log('  targetUser:', targetUser ? targetUser.name : 'none');
+    console.log('  storedRef:', storedRef);
+    console.log('  referralCode:', referralCode);
     
-    if (targetUser || storedRef) {
+    if (targetUser || storedRef || referralCode) {
       // REFERRAL ROUTE: Show introduction screen
-      console.log('[Onboarding] Referral user - showing introduction screen');
+      console.log('[Onboarding] 🎯 REFERRAL user detected - preparing introduction');
       
       if (targetUser) {
-        // Already have target
+        // Already have target - show introduction immediately
+        console.log('[Onboarding] Target already set:', targetUser.name);
         setStep('introduction');
-      } else if (storedRef) {
-        // Fetch target user
-        setLoading(true);
-        try {
-          const refData = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${storedRef}`);
-          const data = await refData.json();
-          
-          setTargetUser(data.targetUser);
-          setReferrerName(data.createdByName || data.introducedBy);
-          setTargetOnline(data.targetOnline || false);
-          setLoading(false);
-          
-          setStep('introduction');
-        } catch (err) {
-          console.error('[Onboarding] Failed to fetch target:', err);
-          setLoading(false);
-          // Fallback: go to main
-          router.push('/main');
+        return;
+      }
+      
+      // Need to fetch target user
+      const refToUse = storedRef || referralCode;
+      if (!refToUse) {
+        console.error('[Onboarding] No ref code available!');
+        router.push('/main');
+        return;
+      }
+      
+      console.log('[Onboarding] Fetching target user for ref:', refToUse);
+      setLoading(true);
+      
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${refToUse}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
+        
+        const data = await response.json();
+        console.log('[Onboarding] ✅ Target user fetched successfully:', data);
+        
+        setTargetUser(data.targetUser);
+        setReferrerName(data.createdByName || data.introducedBy);
+        setTargetOnline(data.targetOnline || false);
+        setLoading(false);
+        
+        console.log('[Onboarding] Showing introduction screen for:', data.targetUser?.name);
+        setStep('introduction');
+      } catch (err) {
+        console.error('[Onboarding] ❌ Failed to fetch target user:', err);
+        setLoading(false);
+        // Fallback: go to main anyway
+        console.log('[Onboarding] Fallback - going to main');
+        router.push('/main');
       }
     } else {
       // REGULAR ROUTE: Go to main
-      console.log('[Onboarding] Regular user - going to main');
+      console.log('[Onboarding] 👤 REGULAR user - going to main');
       router.push('/main');
     }
   };

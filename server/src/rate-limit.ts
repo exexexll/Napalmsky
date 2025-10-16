@@ -36,24 +36,27 @@ export const authLimiter = rateLimit({
  * Protects against API abuse and DDoS
  */
 export const apiLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes (reduced from 15)
-  max: 200, // 200 requests per 5 min (increased from 100 per 15 min)
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 500, // 500 requests per minute (very generous for development)
   message: {
     error: 'Too many requests',
-    message: 'Rate limit exceeded. Please wait 5 minutes.',
-    retryAfter: 5 * 60
+    message: 'Rate limit exceeded. Please wait 1 minute.',
+    retryAfter: 60
   },
   standardHeaders: true,
   legacyHeaders: false,
   validate: { trustProxy: false },
+  skip: (req) => {
+    // Skip rate limiting in development and for health checks
+    return process.env.NODE_ENV === 'development' || req.path === '/health';
+  },
   handler: (req, res) => {
-    const retryAfter = 5 * 60; // 5 minutes in seconds
-    console.warn(`[RateLimit] API limit exceeded for IP ${req.ip} - retry after ${retryAfter}s`);
+    console.warn(`[RateLimit] API limit exceeded for IP ${req.ip} on ${req.path}`);
     res.status(429).json({
       error: 'Too many requests',
-      message: 'You have made too many requests. Please wait 5 minutes before trying again.',
-      retryAfter: retryAfter,
-      retryAfterMinutes: 5
+      message: 'Rate limit exceeded. Please wait 1 minute.',
+      retryAfter: 60,
+      retryAfterMinutes: 1
     });
   }
 });
