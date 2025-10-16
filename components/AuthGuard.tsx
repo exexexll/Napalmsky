@@ -22,7 +22,20 @@ export function AuthGuard({ children }: AuthGuardProps) {
     const session = getSession();
     
     // Public routes that don't require authentication
-    const publicRoutes = ['/', '/onboarding', '/login', '/manifesto', '/blacklist'];
+    const publicRoutes = [
+      '/', 
+      '/onboarding', 
+      '/login', 
+      '/manifesto', 
+      '/blacklist',
+      // Legal pages - must be publicly accessible
+      '/terms-of-service',
+      '/privacy-policy',
+      '/acceptable-use',
+      '/cookie-policy',
+      '/community-guidelines',
+      '/content-policy',
+    ];
     
     // Check if current route is public
     const isPublicRoute = publicRoutes.includes(pathname || '');
