@@ -128,12 +128,12 @@ export default function ManifestoPage() {
   return (
     <main id="main" className="relative min-h-screen bg-[#0a0a0c] overflow-hidden">
       {/* Magazine Cover Layout - Compact, Editorial Style */}
-      <div className="min-h-screen flex flex-col items-end justify-center px-6 sm:px-12 lg:px-20 py-20">
-        {/* Right-aligned container */}
-        <div className="max-w-7xl w-full text-right space-y-2 sm:space-y-3 mb-16 sm:mb-20">
+      <div className="min-h-screen flex flex-col items-start justify-center px-6 sm:px-12 lg:px-20 py-20">
+        {/* Left-aligned container */}
+        <div className="max-w-7xl w-full text-left space-y-2 sm:space-y-3 mb-16 sm:mb-20">
           {/* Just have FUN!! - Large Display */}
           <motion.h1
-            initial={{ opacity: 0, x: 100 }}
+            initial={{ opacity: 0, x: -100 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ 
               duration: 1,
@@ -146,7 +146,7 @@ export default function ManifestoPage() {
           </motion.h1>
           
           <motion.h1
-            initial={{ opacity: 0, x: 100 }}
+            initial={{ opacity: 0, x: -100 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ 
               duration: 1,
@@ -161,7 +161,7 @@ export default function ManifestoPage() {
 
           {/* Meet People: - Medium accent */}
           <motion.h2
-            initial={{ opacity: 0, x: 100 }}
+            initial={{ opacity: 0, x: -100 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ 
               duration: 1,
@@ -175,19 +175,19 @@ export default function ManifestoPage() {
           </motion.h2>
         </div>
 
-        {/* Rotating Sentence Area - Right aligned with persistent underline */}
-        <div className="max-w-7xl w-full text-right mb-12 sm:mb-16">
+        {/* Rotating Sentence Area - Left aligned with persistent underline */}
+        <div className="max-w-7xl w-full text-left mb-12 sm:mb-16">
           {/* Persistent Underline - Always visible */}
           <div className="relative inline-block">
             <div className="border-b-4 sm:border-b-6 border-[#ff9b6b] pb-2 sm:pb-3 min-w-[300px] sm:min-w-[500px] md:min-w-[700px] lg:min-w-[900px]">
               {/* Rotating Text with Swoosh Animation */}
-              <div className="min-h-[100px] sm:min-h-[120px] md:min-h-[150px] lg:min-h-[180px] flex items-center justify-end">
+              <div className="min-h-[100px] sm:min-h-[120px] md:min-h-[150px] lg:min-h-[180px] flex items-center justify-start">
                 <AnimatePresence mode="wait">
                   <motion.p
                     key={currentReasonIndex}
                     initial={{ 
                       opacity: 0, 
-                      x: 150,
+                      x: -150,
                       filter: 'blur(10px)',
                     }}
                     animate={{ 
@@ -197,7 +197,7 @@ export default function ManifestoPage() {
                     }}
                     exit={{ 
                       opacity: 0, 
-                      x: -150,
+                      x: 150,
                       filter: 'blur(10px)',
                     }}
                     transition={{ 
@@ -217,14 +217,14 @@ export default function ManifestoPage() {
 
         {/* The experience should speak for itself lol - Small italic */}
         <motion.p
-          initial={{ opacity: 0, x: 100 }}
+          initial={{ opacity: 0, x: -100 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ 
             duration: 1,
             delay: 0.4,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="max-w-7xl w-full text-right font-playfair text-xl sm:text-2xl md:text-3xl 
+          className="max-w-7xl w-full text-left font-playfair text-xl sm:text-2xl md:text-3xl 
                      font-medium text-[#eaeaf0]/70 italic mb-20 sm:mb-24"
         >
           The experience should speak for itself lol
