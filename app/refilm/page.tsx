@@ -471,6 +471,7 @@ export default function RefilmPage() {
                   playsInline
                   muted
                   className="h-full w-full object-cover"
+                  style={{ transform: 'scaleX(-1)' }}
                 />
               </div>
               <canvas ref={canvasRef} className="hidden" />
@@ -511,6 +512,7 @@ export default function RefilmPage() {
                   playsInline
                   muted
                   className="h-full w-full object-cover"
+                  style={{ transform: 'scaleX(-1)' }}
                 />
                 {isRecording && (
                   <div className="absolute top-4 right-4 flex items-center gap-2 rounded-lg bg-black/50 px-3 py-2 backdrop-blur-sm">
