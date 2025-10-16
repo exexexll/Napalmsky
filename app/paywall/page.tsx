@@ -17,36 +17,38 @@ function PaywallPageContent() {
   const [validating, setValidating] = useState(false);
   const [attemptsRemaining, setAttemptsRemaining] = useState(5);
 
-  // Check if already paid
+  // Check if already paid - redirect verified users to main
   useEffect(() => {
-    // CRITICAL FIX: Prevent redirect loop
-    const isRedirecting = sessionStorage.getItem('redirecting_to_paywall');
-    if (isRedirecting) {
-      // We were just redirected here, clear flag and stay
-      sessionStorage.removeItem('redirecting_to_paywall');
-      console.log('[Paywall] Arrived from redirect - staying on paywall');
-      return;
-    }
-
     const session = getSession();
     if (!session) {
       router.push('/onboarding');
       return;
     }
 
-    // Check payment status
+    // CRITICAL FIX: Always check payment status, don't rely on redirect flags
+    // This handles verified users landing here from any source
     fetch(`${API_BASE}/payment/status`, {
       headers: { 'Authorization': `Bearer ${session.sessionToken}` },
     })
       .then(res => res.json())
       .then(data => {
         if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
-          // Already paid, redirect to main (NOT onboarding to avoid loop!)
-          console.log('[Paywall] Already paid - redirecting to main');
-          router.push('/main');
+          // Already paid/verified - redirect to main immediately
+          console.log('[Paywall] User already verified - redirecting to main');
+          router.replace('/main'); // Use replace to prevent back button issues
+        } else {
+          // Check if we were just redirected here to prevent loop
+          const isRedirecting = sessionStorage.getItem('redirecting_to_paywall');
+          if (isRedirecting) {
+            sessionStorage.removeItem('redirecting_to_paywall');
+            console.log('[Paywall] Arrived from redirect - staying on paywall');
+          }
         }
       })
-      .catch(err => console.error('Failed to check payment status:', err));
+      .catch(err => {
+        console.error('[Paywall] Failed to check payment status:', err);
+        // On error, stay on paywall (safer than redirecting)
+      });
   }, [router]);
 
   const handlePayment = async () => {

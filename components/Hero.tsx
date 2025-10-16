@@ -4,14 +4,44 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRef, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from './Button';
 import { ScrollHint } from './ScrollHint';
 import { API_BASE } from '@/lib/config';
+import { getSession } from '@/lib/session';
 
 export function Hero() {
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { scrollY } = useScroll();
   const [onlineUsers, setOnlineUsers] = useState<number | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  
+  // Check if user is already verified (redirect to main if so)
+  useEffect(() => {
+    const session = getSession();
+    
+    if (!session) {
+      setCheckingSession(false);
+      return;
+    }
+    
+    // User has session, check if verified
+    fetch(`${API_BASE}/payment/status`, {
+      headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        const verified = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
+        setIsVerified(verified);
+        setCheckingSession(false);
+      })
+      .catch(err => {
+        console.error('[Hero] Payment check failed:', err);
+        setCheckingSession(false);
+      });
+  }, []);
   
   // Fetch live active user count
   useEffect(() => {
@@ -33,6 +63,15 @@ export function Hero() {
 
     return () => clearInterval(interval);
   }, []);
+  
+  // Handle Connect button click
+  const handleConnect = () => {
+    if (isVerified) {
+      router.push('/main');
+    } else {
+      router.push('/onboarding');
+    }
+  };
   
   // Parallax effect (disabled with reduced motion)
   const y = useTransform(scrollY, [0, 500], [0, 150]);
@@ -94,9 +133,21 @@ export function Hero() {
 
           {/* CTAs */}
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button variant="primary" href="/onboarding">
-              Start connecting
-            </Button>
+            {checkingSession ? (
+              <button
+                disabled
+                className="rounded-xl bg-[#ff9b6b]/50 px-8 py-3 font-medium text-[#0a0a0c] cursor-wait"
+              >
+                Loading...
+              </button>
+            ) : (
+              <button
+                onClick={handleConnect}
+                className="rounded-xl bg-[#ff9b6b] px-8 py-3 font-medium text-[#0a0a0c] shadow-lg transition-all hover:scale-105 hover:shadow-xl active:scale-95 focus-ring"
+              >
+                {isVerified ? 'Continue to App' : 'Start connecting'}
+              </button>
+            )}
             <Button variant="ghost" href="/manifesto">
               Read the manifesto
             </Button>
