@@ -185,33 +185,9 @@ router.post('/video', requireAuth, (req: any, res) => {
         await store.updateUser(req.userId, { videoUrl });
       }
       
-      // Check if this user was introduced via referral - send notification NOW (after profile complete)
-      const user = await store.getUser(req.userId);
-      if (user && user.introducedTo && user.introducedBy && user.introducedViaCode) {
-        const targetUser = await store.getUser(user.introducedTo);
-        const introducerUser = await store.getUser(user.introducedBy);
-        
-        if (targetUser && introducerUser) {
-          // Create notification for the TARGET user (person they were introduced to)
-          const notification: any = {
-            id: require('uuid').v4(),
-            forUserId: user.introducedTo,
-            referredUserId: user.userId,
-            referredName: user.name,
-            introducedBy: user.introducedBy,
-            introducedByName: introducerUser.name,
-            timestamp: Date.now(),
-            read: false,
-          };
-          
-          await store.createReferralNotification(notification);
-          console.log(`[Referral] Notification created after profile completion for ${targetUser.name}: ${user.name} is now ready`);
-          
-          // TODO: Send via Socket.io if target is online
-          // This would require access to io and activeSockets which aren't available in media routes
-          // For now, notification will be delivered when target user next authenticates
-        }
-      }
+      // REMOVED: Referral notification system (redundant with call requests)
+      // User will appear in matchmaking with special "Introduced by X" status
+      // No need for separate notification - they'll see them when browsing
       
       res.json({ videoUrl });
     } catch (error: any) {

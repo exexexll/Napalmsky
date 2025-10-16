@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Container } from '@/components/Container';
 import { createGuestAccount, uploadSelfie, uploadVideo, linkAccount, getReferralInfo } from '@/lib/api';
 import { saveSession, getSession } from '@/lib/session';
@@ -76,6 +77,20 @@ function OnboardingPageContent() {
     // IMPORTANT: Validate session is actually valid before redirecting
     // (Server restart clears sessions, but localStorage still has old tokens)
     if (existingSession) {
+      // CRITICAL FIX: If user has session AND referral/invite link, skip all onboarding!
+      // Redirect directly to matchmaking with the target user
+      if (ref || invite) {
+        console.log('[Onboarding] Existing session with referral/invite - redirecting to matchmaking');
+        // Go to main with query params to open matchmaking
+        if (ref) {
+          router.push(`/main?openMatchmaking=true&ref=${ref}`);
+        } else {
+          router.push('/main'); // Invite code users just go to main
+        }
+        return;
+      }
+      
+      // No referral/invite - normal flow
       // Verify session is valid by checking with server
       fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/user/me`, {
         headers: { 'Authorization': `Bearer ${existingSession.sessionToken}` },
@@ -85,30 +100,16 @@ function OnboardingPageContent() {
           // Check if profile is complete (has selfie AND video)
           const hasCompletedProfile = data.selfieUrl && data.videoUrl;
           
-          // CRITICAL SECURITY FIX: Also check payment status before allowing access to main
-          // Prevents bypass: User backs out of Stripe → lands here → was redirecting to main without payment check!
+          // Check payment status
           const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
           
           if (hasCompletedProfile && hasPaid) {
-            // Profile complete AND paid - redirect to main app
-            // HANDLE REFERRAL LINKS: If user has ref code, open matchmaking to that person
-            if (ref) {
-              console.log('[Onboarding] Complete + paid + referral - opening matchmaking to target');
-              router.push(`/main?openMatchmaking=true&ref=${ref}`);
-            } 
-            // HANDLE INVITE CODE LINKS: If user has invite code in URL, also open matchmaking
-            else if (invite) {
-              console.log('[Onboarding] Complete + paid + invite link - going to main');
-              router.push('/main');
-            }
-            else {
-              console.log('[Onboarding] Complete profile + paid - redirecting to main');
-              router.push('/main');
-            }
+            // Profile complete AND paid - redirect to main
+            console.log('[Onboarding] Complete profile + paid - redirecting to main');
+            router.push('/main');
           } else if (hasCompletedProfile && !hasPaid) {
-            // Profile complete but NOT paid - redirect to paywall ONLY ONCE
+            // Profile complete but NOT paid - redirect to paywall
             console.log('[Onboarding] Complete profile but unpaid - redirecting to paywall');
-            // Add flag to prevent loop
             sessionStorage.setItem('redirecting_to_paywall', 'true');
             router.push('/paywall');
           } else {
@@ -125,7 +126,6 @@ function OnboardingPageContent() {
               console.log('[Onboarding] No video - starting from video step');
               setStep('video');
             } else {
-              // Shouldn't reach here, but go to permanent step
               setStep('permanent');
             }
           }
@@ -184,9 +184,10 @@ function OnboardingPageContent() {
         setTargetOnline(response.targetOnline);
       }
       
-      // CRITICAL: Always require profile completion (selfie + video)
-      // Even if user used invite code, they must complete profile
-      console.log('[Onboarding] Account created - proceeding to profile setup');
+      // CRITICAL: Always require profile completion (selfie + video) BEFORE payment
+      // This ensures User B completes profile before seeing paywall
+      // Payment happens AFTER they complete selfie + video
+      console.log('[Onboarding] Account created - proceeding to profile setup (payment comes after)');
       setStep('selfie');
     } catch (err: any) {
       setError(err.message);
@@ -422,10 +423,45 @@ function OnboardingPageContent() {
   }, [recordedChunks, isRecording, sessionToken, targetUser]); // stream not needed - using state updater
 
   /**
-   * Step 4: Optional Permanent
+   * Step 4: Check payment and redirect appropriately
    */
-  const handleSkip = () => {
-    router.push('/main');
+  const handleSkip = async () => {
+    // CRITICAL FIX: Check payment status after profile completion
+    // For referral users, they might not have paid yet
+    const session = getSession();
+    if (!session) {
+      router.push('/onboarding');
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/status`, {
+        headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+      });
+      const data = await res.json();
+      
+      const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
+      
+      if (hasPaid) {
+        // Already verified - go to main or introduction screen
+        if (targetUser) {
+          console.log('[Onboarding] Verified + has target - show introduction screen');
+          setStep('introduction');
+        } else {
+          console.log('[Onboarding] Verified - going to main');
+          router.push('/main');
+        }
+      } else {
+        // Not verified - need payment AFTER profile completion
+        console.log('[Onboarding] Profile complete but unpaid - redirecting to paywall');
+        sessionStorage.setItem('redirecting_to_paywall', 'true');
+        router.push('/paywall');
+      }
+    } catch (err) {
+      console.error('[Onboarding] Payment check failed:', err);
+      // On error, safer to go to paywall
+      router.push('/paywall');
+    }
   };
 
   /**
@@ -590,6 +626,19 @@ function OnboardingPageContent() {
                   >
                     {loading ? 'Creating account...' : 'Continue'}
                   </button>
+                  
+                  {/* Login link for existing users */}
+                  <div className="text-center pt-4">
+                    <p className="text-sm text-[#eaeaf0]/70">
+                      Already have an account?{' '}
+                      <Link 
+                        href={referralCode ? `/login?ref=${referralCode}` : '/login'}
+                        className="font-medium text-[#ff9b6b] hover:underline"
+                      >
+                        Login here
+                      </Link>
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             )}

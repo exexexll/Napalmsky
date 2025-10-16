@@ -1,19 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Container } from '@/components/Container';
 import { login } from '@/lib/api';
 import { saveSession } from '@/lib/session';
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+
+  // Extract referral code from URL if present
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) {
+      setReferralCode(ref);
+      console.log('[Login] Referral code detected:', ref);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +44,14 @@ export default function LoginPage() {
         userId: response.userId,
         accountType: response.accountType,
       });
-      router.push('/main');
+      
+      // CRITICAL: If login came from referral link, preserve ref code and open matchmaking
+      if (referralCode) {
+        console.log('[Login] Redirecting to matchmaking with referral code:', referralCode);
+        router.push(`/main?openMatchmaking=true&ref=${referralCode}`);
+      } else {
+        router.push('/main');
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -117,7 +135,10 @@ export default function LoginPage() {
           <div className="text-center space-y-3">
             <p className="text-sm text-[#eaeaf0]/70">
               Don&apos;t have an account?{' '}
-              <Link href="/onboarding" className="font-medium text-[#ff9b6b] hover:underline">
+              <Link 
+                href={referralCode ? `/onboarding?ref=${referralCode}` : '/onboarding'}
+                className="font-medium text-[#ff9b6b] hover:underline"
+              >
                 Create one now
               </Link>
             </p>
@@ -128,5 +149,17 @@ export default function LoginPage() {
         </motion.div>
       </Container>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0c]">
+        <div className="text-[#eaeaf0]">Loading...</div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }
