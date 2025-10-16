@@ -446,7 +446,7 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
           </AnimatePresence>
           
           {/* Action Row: Timer Button + CTA Button */}
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             {/* Timer Display Button - Shrinks when not hovered */}
             <motion.button
               onClick={() => setShowTimerModal(true)}
@@ -492,24 +492,24 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
               </div>
             </motion.button>
 
-            {/* CTA Button - Shrinks when not hovered */}
+            {/* CTA Button - Responsive sizing to prevent overlap */}
             <motion.button
               onClick={() => !isSelf && inviteStatus !== 'cooldown' && onInvite(user.userId, seconds)}
               disabled={inviteStatus === 'waiting' || inviteStatus === 'cooldown' || seconds < 1 || isSelf}
               className="focus-ring flex-1 rounded-2xl bg-[#ff9b6b] font-playfair font-bold text-[#0a0a0c] shadow-2xl transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               initial={{
-                paddingLeft: '3rem',
-                paddingRight: '3rem',
-                paddingTop: '1.5rem',
-                paddingBottom: '1.5rem',
-                fontSize: '2.25rem',
+                paddingLeft: isMobile ? '1rem' : '3rem',
+                paddingRight: isMobile ? '1rem' : '3rem',
+                paddingTop: isMobile ? '1rem' : '1.5rem',
+                paddingBottom: isMobile ? '1rem' : '1.5rem',
+                fontSize: isMobile ? '1.125rem' : '2.25rem',
               }}
               animate={{
-                paddingLeft: isHovered ? '3rem' : '1.5rem',
-                paddingRight: isHovered ? '3rem' : '1.5rem',
-                paddingTop: isHovered ? '1.5rem' : '1rem',
-                paddingBottom: isHovered ? '1.5rem' : '1rem',
-                fontSize: isHovered ? '2.25rem' : '1.5rem',
+                paddingLeft: isHovered ? (isMobile ? '1rem' : '3rem') : (isMobile ? '0.75rem' : '1.5rem'),
+                paddingRight: isHovered ? (isMobile ? '1rem' : '3rem') : (isMobile ? '0.75rem' : '1.5rem'),
+                paddingTop: isHovered ? (isMobile ? '1rem' : '1.5rem') : (isMobile ? '0.75rem' : '1rem'),
+                paddingBottom: isHovered ? (isMobile ? '1rem' : '1.5rem') : (isMobile ? '0.75rem' : '1rem'),
+                fontSize: isHovered ? (isMobile ? '1.125rem' : '2.25rem') : (isMobile ? '1rem' : '1.5rem'),
               }}
               transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
             >
