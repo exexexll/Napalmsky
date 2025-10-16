@@ -160,22 +160,21 @@ function PaymentSuccessPageContent() {
             {/* Continue Button - Minimal */}
             <button
               onClick={() => {
-                // CRITICAL FIX: For referral users, go back to onboarding to show introduction screen
-                // Onboarding will detect: complete + paid + ref → show introduction
-                const urlParams = new URLSearchParams(window.location.search);
-                const hasRef = urlParams.toString().includes('ref=') || sessionStorage.getItem('onboarding_ref_code');
+                // CRITICAL: Check if user came from onboarding (needs to complete profile)
+                const returnToOnboarding = sessionStorage.getItem('return_to_onboarding');
                 
-                if (hasRef) {
-                  console.log('[Payment Success] Referral user - returning to onboarding for introduction screen');
+                if (returnToOnboarding) {
+                  console.log('[Payment Success] Returning to onboarding to complete profile');
+                  sessionStorage.removeItem('return_to_onboarding');
                   router.push('/onboarding');
                 } else {
-                  console.log('[Payment Success] Normal user - going to main');
+                  console.log('[Payment Success] Profile already complete - going to main');
                   router.push('/main');
                 }
               }}
               className="focus-ring w-full rounded-xl bg-[#ff9b6b] px-6 py-3 font-medium text-[#0a0a0c] transition-opacity hover:opacity-90"
             >
-              Continue →
+              Continue to Profile Setup →
             </button>
           </motion.div>
         </div>

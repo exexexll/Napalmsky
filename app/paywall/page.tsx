@@ -59,6 +59,13 @@ function PaywallPageContent() {
     setError('');
 
     try {
+      // CRITICAL: Mark that we're going to Stripe from paywall
+      // So payment-success knows whether to return to onboarding
+      const needsProfile = sessionStorage.getItem('return_to_onboarding');
+      if (needsProfile) {
+        console.log('[Paywall] User needs to complete profile after payment');
+      }
+      
       const res = await fetch(`${API_BASE}/payment/create-checkout`, {
         method: 'POST',
         headers: {
