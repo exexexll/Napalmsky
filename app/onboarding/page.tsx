@@ -27,6 +27,7 @@ function OnboardingPageContent() {
   const [targetUser, setTargetUser] = useState<any>(null);
   const [targetOnline, setTargetOnline] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null); // QR code from URL
+  const [agreedToTerms, setAgreedToTerms] = useState(false); // Legal consent
 
   // Step 2: Selfie
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -170,6 +171,11 @@ function OnboardingPageContent() {
   const handleNameSubmit = async () => {
     if (!name.trim()) {
       setError('Please enter your name');
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setError('You must agree to the Terms of Service, Privacy Policy, and Content Policy to continue');
       return;
     }
 
@@ -436,7 +442,7 @@ function OnboardingPageContent() {
           setLoading(false);
         });
     }
-  }, [recordedChunks, isRecording, sessionToken, stream]); // stream not needed - using state updater
+  }, [recordedChunks, isRecording, sessionToken, stream, targetUser, referralCode]); // Added missing dependencies
 
   /**
    * Step 4: Skip permanent account step - go to main
@@ -597,6 +603,34 @@ function OnboardingPageContent() {
                     </div>
                   </div>
 
+                  {/* Legal Consent Checkbox */}
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        className="mt-1 h-5 w-5 rounded border-white/20 bg-white/10 text-[#ff9b6b] 
+                                 focus:ring-2 focus:ring-[#ff9b6b] focus:ring-offset-0"
+                      />
+                      <span className="text-sm text-[#eaeaf0]/80">
+                        I have read and agree to the{' '}
+                        <Link href="/terms-of-service" target="_blank" className="text-[#ff9b6b] hover:underline">
+                          Terms of Service
+                        </Link>
+                        ,{' '}
+                        <Link href="/privacy-policy" target="_blank" className="text-[#ff9b6b] hover:underline">
+                          Privacy Policy
+                        </Link>
+                        , and{' '}
+                        <Link href="/content-policy" target="_blank" className="text-[#ff9b6b] hover:underline">
+                          Content Policy
+                        </Link>
+                        . I confirm I am at least 18 years old.
+                      </span>
+                    </label>
+                  </div>
+
                   {error && (
                     <div className="rounded-xl bg-red-500/10 p-4 text-sm text-red-400">
                       {error}
@@ -605,7 +639,7 @@ function OnboardingPageContent() {
 
                   <button
                     onClick={handleNameSubmit}
-                    disabled={loading}
+                    disabled={loading || !agreedToTerms}
                     className="focus-ring w-full rounded-xl bg-[#ff9b6b] px-6 py-3 font-medium text-[#0a0a0c] shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
                     {loading ? 'Creating account...' : 'Continue'}

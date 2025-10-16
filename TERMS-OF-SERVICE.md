@@ -296,7 +296,7 @@ You may delete your account at any time through settings. Upon deletion:
 - If you were banned, your blacklist entry will remain
 
 ### 13.3 Data Portability
-You may request a copy of your data by contacting us at [contact email].
+You may request a copy of your data by contacting us at everything@napalmsky.com.
 
 ---
 
@@ -412,10 +412,10 @@ You agree to indemnify, defend, and hold harmless Napalm Sky, its officers, dire
 ## 20. DISPUTE RESOLUTION
 
 ### 20.1 Informal Resolution
-Before filing a claim, you agree to contact us at [contact email] to attempt to resolve the dispute informally.
+Before filing a claim, you agree to contact us at everything@napalmsky.com to attempt to resolve the dispute informally.
 
 ### 20.2 Governing Law
-These Terms shall be governed by the laws of [Your State/Country], without regard to conflict of law principles.
+These Terms shall be governed by the laws of the State of California, United States, without regard to conflict of law principles.
 
 ### 20.3 Arbitration Agreement
 **Any dispute arising from these Terms or your use of the Service shall be resolved through binding arbitration** rather than in court, except that:
@@ -426,7 +426,7 @@ These Terms shall be governed by the laws of [Your State/Country], without regar
 **YOU AGREE THAT DISPUTES MUST BE BROUGHT INDIVIDUALLY** and not as part of any class, consolidated, or representative action. Class arbitrations and class actions are not permitted.
 
 ### 20.5 Venue
-If arbitration does not apply, you agree that any legal action must be filed in courts located in [Your County/State].
+If arbitration does not apply, you agree that any legal action must be filed in courts located in Los Angeles County, California.
 
 ---
 
@@ -495,9 +495,9 @@ We are not liable for failures or delays due to circumstances beyond our reasona
 If you have questions about these Terms, please contact us:
 
 **Napalm Sky**  
-Email: [your-email@napalmsky.com]  
-Website: [napalmsky.com]  
-Address: [Your Physical Address]
+Email: everything@napalmsky.com  
+Website: napalmsky.com  
+Address: 1506 Nolita, Los Angeles, CA 90026
 
 ---
 

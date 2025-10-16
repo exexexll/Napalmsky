@@ -3,6 +3,8 @@ import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/Header';
 import { AuthGuard } from '@/components/AuthGuard';
+import { LegalFooter } from '@/components/LegalFooter';
+import { CookieConsent } from '@/components/CookieConsent';
 
 const playfair = Playfair_Display({
   weight: '700',
@@ -75,6 +77,8 @@ export default function RootLayout({
         <AuthGuard>
           {children}
         </AuthGuard>
+        <LegalFooter />
+        <CookieConsent />
       </body>
     </html>
   );
