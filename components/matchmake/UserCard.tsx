@@ -210,7 +210,7 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
     >
       {/* User Info Overlay - Top (Animates based on hover) */}
       <motion.div 
-        className="absolute top-0 left-0 right-0 z-10"
+        className="absolute top-0 left-0 right-0 z-30"
         initial={{ padding: isMobile ? '1rem' : '2rem' }}
         animate={{
           padding: isHovered ? (isMobile ? '1rem' : '2rem') : (isMobile ? '0.5rem' : '1rem'),
@@ -334,8 +334,8 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
 
       {/* Status Banner - Above Controls (Minimizable on hover) */}
       {status && (
-        <motion.div 
-          className="absolute left-8 right-8 z-10"
+        <motion.div
+          className="absolute left-4 right-4 md:left-8 md:right-8 z-20"
           initial={{ bottom: '11rem' }}
           animate={{
             bottom: isHovered ? '11rem' : '6rem',
@@ -361,8 +361,8 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
 
       {/* Controls - Bottom (Animates based on hover) */}
       <motion.div 
-        className="absolute bottom-0 left-0 right-0 z-10"
-        initial={{ padding: '2rem' }}
+        className="absolute bottom-0 left-0 right-0 z-20"
+        initial={{ padding: isMobile ? '1rem' : '2rem' }}
         animate={{
           padding: isHovered ? '2rem' : '1rem',
         }}
@@ -600,9 +600,9 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-lg"
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-lg"
           >
-            <div className="text-center space-y-6 px-8">
+            <div className="text-center space-y-4 md:space-y-6 px-4 md:px-8 w-full max-w-md mx-auto">
               {/* Countdown Circle */}
               <div className="mx-auto">
                 <div className="relative inline-flex items-center justify-center">
