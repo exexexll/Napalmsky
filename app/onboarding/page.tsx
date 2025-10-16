@@ -393,6 +393,13 @@ function OnboardingPageContent() {
 
       console.log('[Onboarding] Video blob size:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
       
+      // Check if referral user BEFORE upload to decide flow
+      const storedRef = sessionStorage.getItem('onboarding_ref_code');
+      const isReferralUser = targetUser || storedRef || referralCode;
+      
+      console.log('[Onboarding] Is referral user?', isReferralUser);
+      console.log('[Onboarding] Has targetUser?', !!targetUser);
+      
       setLoading(true);
       setUploadProgress(0);
       setShowUploadProgress(true); // Show immediately for better UX
@@ -429,51 +436,41 @@ function OnboardingPageContent() {
             return null;
           });
           
-          // CRITICAL FIX: After video, check if referral user
-          // Payment already happened BEFORE profile (at name step)
-          console.log('[Onboarding] Video complete - checking if should show introduction...');
-          console.log('[Onboarding] DEBUG - targetUser:', targetUser);
-          console.log('[Onboarding] DEBUG - referralCode:', referralCode);
+          // After video upload: Decide next step
+          // REGULAR users → permanent step
+          // REFERRAL users → introduction screen
           
-          // Check if this is a referral user
+          // Check if referral user
           const storedRef = sessionStorage.getItem('onboarding_ref_code');
-          console.log('[Onboarding] DEBUG - storedRef from sessionStorage:', storedRef);
           
-          // ALWAYS check state first - might already be set from name step
           if (targetUser) {
-            console.log('[Onboarding] targetUser already set - showing introduction screen');
+            // REFERRAL: Target already set - show introduction
+            console.log('[Onboarding] Referral user with targetUser - showing introduction');
             setStep('introduction');
-            return; // Exit early
-          }
-          
-          // If we have ref code but no targetUser, fetch it
-          if (storedRef || referralCode) {
-            const refToUse = storedRef || referralCode;
-            console.log('[Onboarding] Fetching target user from ref code:', refToUse);
+          } else if (storedRef || referralCode) {
+            // REFERRAL: Have ref code - fetch target then show introduction  
+            console.log('[Onboarding] Referral user - fetching target...');
+            const refToUse = storedRef || referralCode!;
             
-            try {
-              const refData = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${refToUse}`);
-              if (!refData.ok) {
-                throw new Error('Failed to fetch referral info');
-              }
-              const data = await refData.json();
-              console.log('[Onboarding] Referral data received:', data);
-              
-              setTargetUser(data.targetUser);
-              setReferrerName(data.createdByName || data.introducedBy);
-              setTargetOnline(data.targetOnline || false);
-              
-              console.log('[Onboarding] Target user set - showing introduction screen');
-              setStep('introduction');
-            } catch (e) {
-              console.error('[Onboarding] Failed to fetch target user:', e);
-              // Fallback: go to permanent step even if fetch fails
-              console.log('[Onboarding] Fetch failed - going to permanent step');
-              setStep('permanent');
-            }
+            fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${refToUse}`)
+              .then(res => res.json())
+              .then(data => {
+                console.log('[Onboarding] Target loaded:', data.targetUser?.name);
+                setTargetUser(data.targetUser);
+                setReferrerName(data.createdByName || data.introducedBy);
+                setTargetOnline(data.targetOnline || false);
+                setStep('introduction');
+              })
+              .catch(e => {
+                console.error('[Onboarding] Fetch failed:', e);
+                setStep('permanent'); // Fallback
+              });
+            
+            // Set permanent temporarily while fetching (prevents black screen)
+            setStep('permanent');
           } else {
-            // Not a referral user - go to permanent account step
-            console.log('[Onboarding] No referral context - showing permanent account option');
+            // REGULAR: No referral - show permanent step
+            console.log('[Onboarding] Regular user - showing permanent');
             setStep('permanent');
           }
         })
@@ -483,44 +480,43 @@ function OnboardingPageContent() {
   }, [recordedChunks, isRecording, sessionToken, targetUser, router]); // stream not needed - using state updater
 
   /**
-   * Step 4: Check payment and redirect appropriately
+   * Step 4: From permanent step - check if referral to show introduction
    */
   const handleSkip = async () => {
-    // CRITICAL FIX: Check payment status after profile completion
-    // For referral users, they might not have paid yet
-    const session = getSession();
-    if (!session) {
-      router.push('/onboarding');
-      return;
-    }
+    // Check if this is a REFERRAL user
+    const storedRef = sessionStorage.getItem('onboarding_ref_code');
     
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/status`, {
-        headers: { 'Authorization': `Bearer ${session.sessionToken}` },
-      });
-      const data = await res.json();
+    if (targetUser || storedRef) {
+      // REFERRAL ROUTE: Show introduction screen
+      console.log('[Onboarding] Referral user - showing introduction screen');
       
-      const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
-      
-      if (hasPaid) {
-        // Already verified - go to main or introduction screen
-        if (targetUser) {
-          console.log('[Onboarding] Verified + has target - show introduction screen');
+      if (targetUser) {
+        // Already have target
+        setStep('introduction');
+      } else if (storedRef) {
+        // Fetch target user
+        setLoading(true);
+        try {
+          const refData = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${storedRef}`);
+          const data = await refData.json();
+          
+          setTargetUser(data.targetUser);
+          setReferrerName(data.createdByName || data.introducedBy);
+          setTargetOnline(data.targetOnline || false);
+          setLoading(false);
+          
           setStep('introduction');
-        } else {
-          console.log('[Onboarding] Verified - going to main');
+        } catch (err) {
+          console.error('[Onboarding] Failed to fetch target:', err);
+          setLoading(false);
+          // Fallback: go to main
           router.push('/main');
         }
-      } else {
-        // Not verified - need payment AFTER profile completion
-        console.log('[Onboarding] Profile complete but unpaid - redirecting to paywall');
-        sessionStorage.setItem('redirecting_to_paywall', 'true');
-        router.push('/paywall');
       }
-    } catch (err) {
-      console.error('[Onboarding] Payment check failed:', err);
-      // On error, safer to go to paywall
-      router.push('/paywall');
+    } else {
+      // REGULAR ROUTE: Go to main
+      console.log('[Onboarding] Regular user - going to main');
+      router.push('/main');
     }
   };
 
