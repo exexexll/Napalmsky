@@ -429,32 +429,51 @@ function OnboardingPageContent() {
             return null;
           });
           
-          // REVERTED: After video, check if referral user to show introduction
+          // CRITICAL FIX: After video, check if referral user
           // Payment already happened BEFORE profile (at name step)
           console.log('[Onboarding] Video complete - checking if should show introduction...');
+          console.log('[Onboarding] DEBUG - targetUser:', targetUser);
+          console.log('[Onboarding] DEBUG - referralCode:', referralCode);
           
           // Check if this is a referral user
           const storedRef = sessionStorage.getItem('onboarding_ref_code');
+          console.log('[Onboarding] DEBUG - storedRef from sessionStorage:', storedRef);
           
-          if (targetUser || storedRef) {
-            // This is a referral user - fetch target if not already set
-            if (storedRef && !targetUser) {
-              console.log('[Onboarding] Has ref code, fetching target user...');
-              try {
-                const refData = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${storedRef}`).then(r => r.json());
-                setTargetUser(refData.targetUser);
-                setReferrerName(refData.createdByName);
-                setTargetOnline(refData.targetOnline || false);
-                console.log('[Onboarding] Target user loaded:', refData.targetUser?.name);
-              } catch (e) {
-                console.error('[Onboarding] Failed to fetch target:', e);
-              }
-            }
-            console.log('[Onboarding] Showing introduction screen for referral user');
+          // ALWAYS check state first - might already be set from name step
+          if (targetUser) {
+            console.log('[Onboarding] targetUser already set - showing introduction screen');
             setStep('introduction');
+            return; // Exit early
+          }
+          
+          // If we have ref code but no targetUser, fetch it
+          if (storedRef || referralCode) {
+            const refToUse = storedRef || referralCode;
+            console.log('[Onboarding] Fetching target user from ref code:', refToUse);
+            
+            try {
+              const refData = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${refToUse}`);
+              if (!refData.ok) {
+                throw new Error('Failed to fetch referral info');
+              }
+              const data = await refData.json();
+              console.log('[Onboarding] Referral data received:', data);
+              
+              setTargetUser(data.targetUser);
+              setReferrerName(data.createdByName || data.introducedBy);
+              setTargetOnline(data.targetOnline || false);
+              
+              console.log('[Onboarding] Target user set - showing introduction screen');
+              setStep('introduction');
+            } catch (e) {
+              console.error('[Onboarding] Failed to fetch target user:', e);
+              // Fallback: go to permanent step even if fetch fails
+              console.log('[Onboarding] Fetch failed - going to permanent step');
+              setStep('permanent');
+            }
           } else {
             // Not a referral user - go to permanent account step
-            console.log('[Onboarding] Normal user - showing permanent account option');
+            console.log('[Onboarding] No referral context - showing permanent account option');
             setStep('permanent');
           }
         })
