@@ -208,12 +208,12 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* User Info Overlay - Top (Animates based on hover) */}
+      {/* User Info Overlay - Top (Animates based on hover) - Mobile optimized */}
       <motion.div 
-        className="absolute top-0 left-0 right-0 z-30"
-        initial={{ padding: isMobile ? '1rem' : '2rem' }}
+        className="absolute top-2 md:top-0 left-0 right-0 z-30"
+        initial={{ padding: isMobile ? '0.75rem' : '2rem' }}
         animate={{
-          padding: isHovered ? (isMobile ? '1rem' : '2rem') : (isMobile ? '0.5rem' : '1rem'),
+          padding: isHovered ? (isMobile ? '0.75rem' : '2rem') : (isMobile ? '0.5rem' : '1rem'),
         }}
         transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
       >
@@ -228,16 +228,16 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
           {/* Profile Picture - Smaller on mobile */}
           <motion.div
             initial={{ 
-              width: isMobile ? '3rem' : '5rem', 
-              height: isMobile ? '3rem' : '5rem' 
+              width: isMobile ? '2.5rem' : '5rem', 
+              height: isMobile ? '2.5rem' : '5rem' 
             }}
             animate={{
-              width: isHovered ? (isMobile ? '3rem' : '5rem') : (isMobile ? '2.5rem' : '3rem'),
-              height: isHovered ? (isMobile ? '3rem' : '5rem') : (isMobile ? '2.5rem' : '3rem'),
+              width: isHovered ? (isMobile ? '2.5rem' : '5rem') : (isMobile ? '2rem' : '3rem'),
+              height: isHovered ? (isMobile ? '2.5rem' : '5rem') : (isMobile ? '2rem' : '3rem'),
             }}
             transition={hasMounted ? { duration: 0.3, ease: 'easeOut' } : { duration: 0 }}
             className="relative flex-shrink-0 overflow-hidden rounded-full border-white/30"
-            style={{ borderWidth: isHovered ? (isMobile ? '2px' : '4px') : '2px' }}
+            style={{ borderWidth: isHovered ? (isMobile ? '2px' : '4px') : '1px' }}
           >
             {user.selfieUrl ? (
               <Image

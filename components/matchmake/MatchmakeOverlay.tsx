@@ -469,6 +469,34 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     }
   }, [directMatchTarget, users, autoInviteSent]);
 
+  // CRITICAL: Handle page unload while waiting (prevents cooldown escape)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const waitingInvites = Object.entries(inviteStatuses)
+        .filter(([_, status]) => status === 'waiting');
+      
+      if (waitingInvites.length > 0 && socketRef.current) {
+        console.warn('[Matchmake] ⚠️ Page unload while waiting - auto-rescinding');
+        
+        // Auto-rescind all waiting invites
+        waitingInvites.forEach(([userId]) => {
+          socketRef.current.emit('call:rescind', { toUserId: userId });
+        });
+        
+        // Show browser confirmation dialog
+        e.preventDefault();
+        e.returnValue = 'You have a pending call request. Leaving will cancel it and set a 1-hour cooldown.';
+        return e.returnValue;
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [inviteStatuses]);
+
   // Handle invite
   const handleInvite = (toUserId: string, requestedSeconds: number) => {
     if (!socketRef.current) {
