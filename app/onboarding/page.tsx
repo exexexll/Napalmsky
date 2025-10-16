@@ -405,11 +405,18 @@ function OnboardingPageContent() {
       setShowUploadProgress(true); // Show immediately for better UX
       
       // OPTIMIZED: Use real progress tracking from XMLHttpRequest
+      console.log('[Onboarding] 🎬 Starting video upload...');
+      
       uploadVideo(sessionToken, blob, (percent) => {
         setUploadProgress(percent);
       })
         .then((data: any) => {
-          console.log('[Onboarding] ✅ Video uploaded:', data.videoUrl);
+          console.log('[Onboarding] ========================================');
+          console.log('[Onboarding] ✅ VIDEO UPLOAD SUCCESS');
+          console.log('[Onboarding] URL:', data.videoUrl);
+          console.log('[Onboarding] Current step:', step);
+          console.log('[Onboarding] About to set step to permanent...');
+          console.log('[Onboarding] ========================================');
           
           setUploadProgress(100);
           setTimeout(() => {
@@ -423,20 +430,21 @@ function OnboardingPageContent() {
             setStream(null);
           }
           
-          // SIMPLE FIX: Always go to permanent step
-          // Referral introduction will be handled when user clicks Skip
-          console.log('[Onboarding] Video complete - going to permanent step');
+          // CRITICAL: Set step to permanent
           setStep('permanent');
           setLoading(false);
+          
+          console.log('[Onboarding] ✅ Step set to: permanent');
+          console.log('[Onboarding] ✅ Loading set to: false');
         })
         .catch((err) => {
-          console.error('[Onboarding] Upload error:', err);
+          console.error('[Onboarding] ❌ VIDEO UPLOAD FAILED:', err);
           setError(err.message);
-          setStep('permanent'); // Always set step even on error
+          setStep('permanent');
           setLoading(false);
         });
     }
-  }, [recordedChunks, isRecording, sessionToken, stream]); // stream not needed - using state updater
+  }, [recordedChunks, isRecording, sessionToken, stream, step]); // stream not needed - using state updater
 
   /**
    * Step 4: From permanent step - check if referral to show introduction
