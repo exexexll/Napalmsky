@@ -75,7 +75,7 @@ export default function RefilmPage() {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
+        video: { facingMode: 'user' }, // Front camera for selfies
         audio: false,
       });
       setStream(mediaStream);
