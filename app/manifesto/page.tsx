@@ -107,6 +107,15 @@ const meetPeopleReasons = [
   "to laugh at the same dumb joke 20 times.",
 ];
 
+const slangTerms = [
+  "LOL", "ROFL", "LMAO", "BRB", "AFK", "TTYL", "SMH", "FTW", "BTW", "OMG",
+  "IDK", "IMO", "IMHO", "TBH", "NVM", "WTF", "TL;DR", "ICYMI", "DM", "IRL",
+  "NSFW", "GG", "Noob", "1337", "BFF", "JK", "FOMO", "YOLO", "Stan", "Cap",
+  "No cap", "Sus", "Slay", "Flex", "Mood", "Vibe", "Salty", "Ghost", "Clout",
+  "Drip", "Lit", "Lowkey", "Highkey", "Boujee", "Extra", "Tea", "Receipts",
+  "Bet", "Fam", "Shade", "Simp", "Main character",
+];
+
 export default function ManifestoPage() {
   const [currentReasonIndex, setCurrentReasonIndex] = useState(0);
 
@@ -125,19 +134,120 @@ export default function ManifestoPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Duplicate slang for infinite scroll effect
+  const slangRow1 = [...slangTerms, ...slangTerms, ...slangTerms];
+  const slangRow2 = [...slangTerms, ...slangTerms, ...slangTerms];
+  const slangRow3 = [...slangTerms, ...slangTerms, ...slangTerms];
+  const slangRow4 = [...slangTerms, ...slangTerms, ...slangTerms];
+
   return (
     <main id="main" className="relative min-h-screen bg-[#0a0a0c] overflow-hidden">
-      {/* Magazine Cover Layout - Compact, Editorial Style */}
-      <div className="min-h-screen flex flex-col items-start justify-center px-6 sm:px-12 lg:px-20 py-20">
+      {/* Animated Slang Background - Multiple Rows */}
+      <div className="absolute inset-0 z-0 overflow-hidden opacity-10">
+        {/* Row 1 - Moving Left */}
+        <div className="absolute top-[10%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-6"
+            animate={{ x: [0, -3000] }}
+            transition={{
+              duration: 60,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow1.map((slang, i) => (
+              <div
+                key={`row1-${i}`}
+                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
+                           font-mono text-2xl font-bold text-white/40"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Row 2 - Moving Right */}
+        <div className="absolute top-[30%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-6"
+            animate={{ x: [-3000, 0] }}
+            transition={{
+              duration: 70,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow2.map((slang, i) => (
+              <div
+                key={`row2-${i}`}
+                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
+                           font-mono text-2xl font-bold text-white/40"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Row 3 - Moving Left */}
+        <div className="absolute top-[50%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-6"
+            animate={{ x: [0, -3000] }}
+            transition={{
+              duration: 55,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow3.map((slang, i) => (
+              <div
+                key={`row3-${i}`}
+                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
+                           font-mono text-2xl font-bold text-white/40"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Row 4 - Moving Right */}
+        <div className="absolute top-[70%] left-0 whitespace-nowrap">
+          <motion.div
+            className="flex gap-6"
+            animate={{ x: [-3000, 0] }}
+            transition={{
+              duration: 65,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          >
+            {slangRow4.map((slang, i) => (
+              <div
+                key={`row4-${i}`}
+                className="px-6 py-3 bg-white/5 rounded-lg border border-white/10 
+                           font-mono text-2xl font-bold text-white/40"
+              >
+                {slang}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Main Content - Overlaid on top */}
+      <div className="relative z-10 min-h-screen flex flex-col items-start justify-center px-6 sm:px-12 lg:px-20 py-20">
         {/* Left-aligned container */}
-        <div className="max-w-7xl w-full text-left space-y-2 sm:space-y-3 mb-16 sm:mb-20">
+        <div className="max-w-7xl w-full text-left space-y-1 sm:space-y-2 mb-12 sm:mb-16">
           {/* Just have FUN!! - Large Display */}
           <motion.h1
             initial={{ opacity: 0, x: -100 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ 
               duration: 1,
-              ease: [0.22, 1, 0.36, 1], // Custom easing for swoosh
+              ease: [0.22, 1, 0.36, 1],
             }}
             className="font-playfair text-7xl sm:text-8xl md:text-9xl lg:text-[12rem] xl:text-[14rem] 
                        font-bold text-[#eaeaf0] leading-[0.85] tracking-tight"
@@ -169,17 +279,17 @@ export default function ManifestoPage() {
               ease: [0.22, 1, 0.36, 1],
             }}
             className="font-playfair text-4xl sm:text-5xl md:text-6xl lg:text-7xl 
-                       font-bold text-[#ff9b6b] leading-tight pt-4 sm:pt-6"
+                       font-bold text-[#ff9b6b] leading-tight pt-2 sm:pt-3"
           >
             Meet People:
           </motion.h2>
         </div>
 
         {/* Rotating Sentence Area - Left aligned with persistent underline */}
-        <div className="max-w-7xl w-full text-left mb-12 sm:mb-16">
-          {/* Persistent Underline - Always visible */}
+        <div className="max-w-7xl w-full text-left mb-16 sm:mb-20">
+          {/* Persistent Underline - Always visible, closer to text */}
           <div className="relative inline-block">
-            <div className="border-b-4 sm:border-b-6 border-[#ff9b6b] pb-2 sm:pb-3 min-w-[300px] sm:min-w-[500px] md:min-w-[700px] lg:min-w-[900px]">
+            <div className="border-b-4 sm:border-b-6 border-[#ff9b6b] pb-1 min-w-[300px] sm:min-w-[500px] md:min-w-[700px] lg:min-w-[900px]">
               {/* Rotating Text with Swoosh Animation */}
               <div className="min-h-[100px] sm:min-h-[120px] md:min-h-[150px] lg:min-h-[180px] flex items-center justify-start">
                 <AnimatePresence mode="wait">
@@ -202,7 +312,7 @@ export default function ManifestoPage() {
                     }}
                     transition={{ 
                       duration: 0.7,
-                      ease: [0.16, 1, 0.3, 1], // Smooth swoosh easing
+                      ease: [0.16, 1, 0.3, 1],
                     }}
                     className="font-inter text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl 
                                font-light text-[#eaeaf0] leading-tight"
@@ -214,25 +324,10 @@ export default function ManifestoPage() {
             </div>
           </div>
         </div>
-
-        {/* The experience should speak for itself lol - Small italic */}
-        <motion.p
-          initial={{ opacity: 0, x: -100 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ 
-            duration: 1,
-            delay: 0.4,
-            ease: [0.22, 1, 0.36, 1],
-          }}
-          className="max-w-7xl w-full text-left font-playfair text-xl sm:text-2xl md:text-3xl 
-                     font-medium text-[#eaeaf0]/70 italic mb-20 sm:mb-24"
-        >
-          The experience should speak for itself lol
-        </motion.p>
       </div>
 
-      {/* Life.webp - Bottom Center, Outside main container */}
-      <div className="flex justify-center pb-16 sm:pb-20">
+      {/* Life.webp - Bottom Center */}
+      <div className="relative z-10 flex justify-center pb-16 sm:pb-20">
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
@@ -249,7 +344,7 @@ export default function ManifestoPage() {
             width={800}
             height={800}
             className="w-full h-auto rounded-2xl shadow-2xl"
-            unoptimized // Important for animated WebP
+            unoptimized
           />
         </motion.div>
       </div>
