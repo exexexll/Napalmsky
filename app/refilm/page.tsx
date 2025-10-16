@@ -39,15 +39,36 @@ export default function RefilmPage() {
       return;
     }
     
-    // Fetch current user data
-    getCurrentUser(session.sessionToken)
-      .then((data) => {
-        setCurrentUser(data);
-        setLoading(false);
+    // CRITICAL SECURITY: Check payment status before allowing profile edits
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001';
+    
+    fetch(`${API_BASE}/payment/status`, {
+      headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+    })
+      .then(res => res.json())
+      .then(paymentData => {
+        const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified';
+        
+        if (!hasPaid) {
+          console.warn('[Refilm] Unpaid user attempted access - redirecting to paywall');
+          router.push('/paywall');
+          return;
+        }
+        
+        // User has paid, fetch current user data
+        getCurrentUser(session.sessionToken)
+          .then((data) => {
+            setCurrentUser(data);
+            setLoading(false);
+          })
+          .catch((err) => {
+            console.error('Failed to fetch user:', err);
+            setLoading(false);
+          });
       })
-      .catch((err) => {
-        console.error('Failed to fetch user:', err);
-        setLoading(false);
+      .catch(err => {
+        console.error('[Refilm] Payment check failed:', err);
+        router.push('/onboarding');
       });
   }, [router]);
 

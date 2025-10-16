@@ -19,22 +19,43 @@ export default function TrackerPage() {
       return;
     }
 
-    // Fetch timer total from server
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/user/me`, {
+    // CRITICAL SECURITY: Check payment status before loading data
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001';
+    
+    fetch(`${API_BASE}/payment/status`, {
       headers: { 'Authorization': `Bearer ${session.sessionToken}` },
     })
       .then(res => res.json())
-      .then(data => {
-        console.log('[Tracker] Timer total from server:', data.timerTotalSeconds);
-        setTotalSeconds(data.timerTotalSeconds || 0);
+      .then(paymentData => {
+        const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified';
+        
+        if (!hasPaid) {
+          console.warn('[Tracker] Unpaid user attempted access - redirecting to paywall');
+          router.push('/paywall');
+          return;
+        }
+        
+        // User has paid, fetch timer total from server
+        fetch(`${API_BASE}/user/me`, {
+          headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+        })
+          .then(res => res.json())
+          .then(data => {
+            console.log('[Tracker] Timer total from server:', data.timerTotalSeconds);
+            setTotalSeconds(data.timerTotalSeconds || 0);
+          })
+          .catch(err => {
+            console.error('[Tracker] Failed to load from server:', err);
+            // Fallback to localStorage for backward compatibility
+            const saved = localStorage.getItem('napalmsky_timer_total');
+            setTotalSeconds(saved ? parseInt(saved, 10) : 0);
+          })
+          .finally(() => setLoading(false));
       })
       .catch(err => {
-        console.error('[Tracker] Failed to load from server:', err);
-        // Fallback to localStorage for backward compatibility
-        const saved = localStorage.getItem('napalmsky_timer_total');
-        setTotalSeconds(saved ? parseInt(saved, 10) : 0);
-      })
-      .finally(() => setLoading(false));
+        console.error('[Tracker] Payment check failed:', err);
+        router.push('/onboarding');
+      });
   }, [router]);
 
   if (loading) {

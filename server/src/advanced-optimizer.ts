@@ -147,10 +147,10 @@ export class AdvancedConnectionManager {
   private connections = new Map<string, Set<string>>(); // userId -> socketIds
   private globalConnectionCount = 0;
   
-  // Aggressive limits for 1000 user scale
-  private readonly MAX_CONNECTIONS_PER_USER = 2; // Reduced from 3
-  private readonly MAX_GLOBAL_CONNECTIONS = 1200; // Hard limit (safety margin)
-  private readonly WARNING_THRESHOLD = 1000;
+  // OPTIMIZED FOR 3000-4000 USERS (4x capacity increase)
+  private readonly MAX_CONNECTIONS_PER_USER = 2; // Keep at 2 (prevent abuse)
+  private readonly MAX_GLOBAL_CONNECTIONS = 5000; // Hard limit for 4000 users × 1.25 buffer
+  private readonly WARNING_THRESHOLD = 4000; // Warn at 80% capacity
 
   addConnection(userId: string, socketId: string): boolean {
     // Check global limit
@@ -264,7 +264,8 @@ export class MessageBatcher {
  */
 export class PresenceOptimizer {
   private lastUpdate = new Map<string, number>(); // userId -> timestamp
-  private readonly UPDATE_INTERVAL = 1000; // 1 second minimum between updates
+  // OPTIMIZED FOR 3000-4000 USERS: Increased from 1s to 2s to reduce event spam
+  private readonly UPDATE_INTERVAL = 2000; // 2 seconds minimum between updates
 
   shouldUpdate(userId: string): boolean {
     const last = this.lastUpdate.get(userId) || 0;

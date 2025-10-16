@@ -23,13 +23,31 @@ function MainPageContent() {
     const session = getSession();
     if (!session) {
       router.push('/onboarding');
-    } else {
-      setLoading(false);
-      
-      // Check if coming from direct match (intro or notification)
-      const openMatchmaking = searchParams.get('openMatchmaking');
-      const targetUser = searchParams.get('targetUser');
-      const refCode = searchParams.get('ref');
+      return;
+    }
+    
+    // CRITICAL SECURITY FIX: Verify user has paid before allowing access
+    // Backend routes are protected with requirePayment middleware, but frontend needs check too
+    fetch(`${API_BASE}/payment/status`, {
+      headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
+        
+        if (!hasPaid) {
+          console.warn('[Main] Unpaid user attempted access - redirecting to paywall');
+          router.push('/paywall');
+          return;
+        }
+        
+        // User has paid, continue with page load
+        setLoading(false);
+        
+        // Check if coming from direct match (intro or notification)
+        const openMatchmaking = searchParams.get('openMatchmaking');
+        const targetUser = searchParams.get('targetUser');
+        const refCode = searchParams.get('ref');
       
       // Handle referral code (registered user clicking referral link)
       if (refCode) {
@@ -63,7 +81,12 @@ function MainPageContent() {
         setDirectMatchTarget(targetUser);
         setShowMatchmake(true);
       }
-    }
+      })
+      .catch(err => {
+        console.error('[Main] Payment status check failed:', err);
+        // On error, redirect to onboarding to be safe
+        router.push('/onboarding');
+      });
   }, [router, searchParams]);
 
   const handleDirectMatch = (targetUserId: string, targetName: string) => {

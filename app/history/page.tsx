@@ -32,28 +32,50 @@ export default function HistoryPage() {
       return;
     }
 
-    // Fetch history from server
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/room/history`, {
+    // CRITICAL SECURITY: Check payment status before loading history
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001';
+    
+    fetch(`${API_BASE}/payment/status`, {
       headers: { 'Authorization': `Bearer ${session.sessionToken}` },
     })
       .then(res => res.json())
-      .then(data => {
-        console.log('[History] Loaded from server:', data.history?.length || 0, 'chats');
-        setHistory(data.history || []);
+      .then(paymentData => {
+        // Allow BOTH paid users AND qr_verified users (invite code, referral, QR scan)
+        const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified';
+        
+        if (!hasPaid) {
+          console.warn('[History] Unpaid user attempted access - redirecting to paywall');
+          router.push('/paywall');
+          return;
+        }
+        
+        // User has paid OR used valid invite code, fetch history from server
+        fetch(`${API_BASE}/room/history`, {
+          headers: { 'Authorization': `Bearer ${session.sessionToken}` },
+        })
+          .then(res => res.json())
+          .then(data => {
+            console.log('[History] Loaded from server:', data.history?.length || 0, 'chats');
+            setHistory(data.history || []);
+          })
+          .catch(err => {
+            console.error('[History] Failed to load from server:', err);
+            // Fallback to localStorage for backward compatibility
+            const saved = localStorage.getItem('napalmsky_history');
+            if (saved) {
+              try {
+                setHistory(JSON.parse(saved));
+              } catch (e) {
+                console.error('Failed to parse history');
+              }
+            }
+          })
+          .finally(() => setLoading(false));
       })
       .catch(err => {
-        console.error('[History] Failed to load from server:', err);
-        // Fallback to localStorage for backward compatibility
-        const saved = localStorage.getItem('napalmsky_history');
-        if (saved) {
-          try {
-            setHistory(JSON.parse(saved));
-          } catch (e) {
-            console.error('Failed to parse history');
-          }
-        }
-      })
-      .finally(() => setLoading(false));
+        console.error('[History] Payment check failed:', err);
+        router.push('/onboarding');
+      });
   }, [router]);
 
   if (loading) {

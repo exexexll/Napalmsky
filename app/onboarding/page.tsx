@@ -79,15 +79,23 @@ function OnboardingPageContent() {
           // Check if profile is complete (has selfie AND video)
           const hasCompletedProfile = data.selfieUrl && data.videoUrl;
           
-          if (hasCompletedProfile) {
-            // Profile complete - redirect to main app
+          // CRITICAL SECURITY FIX: Also check payment status before allowing access to main
+          // Prevents bypass: User backs out of Stripe → lands here → was redirecting to main without payment check!
+          const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
+          
+          if (hasCompletedProfile && hasPaid) {
+            // Profile complete AND paid - redirect to main app
             if (ref) {
-              console.log('[Onboarding] Complete profile + referral - redirecting to matchmaking');
+              console.log('[Onboarding] Complete profile + paid + referral - redirecting to matchmaking');
               router.push(`/main?openMatchmaking=true&ref=${ref}`);
             } else {
-              console.log('[Onboarding] Complete profile - redirecting to main');
+              console.log('[Onboarding] Complete profile + paid - redirecting to main');
               router.push('/main');
             }
+          } else if (hasCompletedProfile && !hasPaid) {
+            // Profile complete but NOT paid - redirect to paywall
+            console.log('[Onboarding] Complete profile but unpaid - redirecting to paywall');
+            router.push('/paywall');
           } else {
             // Profile incomplete - resume onboarding
             console.log('[Onboarding] Incomplete profile - resuming onboarding');

@@ -185,6 +185,7 @@ export class OptimizedUserCache {
 }
 
 // Export singleton for global use
-export const userCache = new OptimizedUserCache(200); // Max 200 users in memory
-export const sessionCache = new LRUCache<any>(300); // Max 300 active sessions in memory
+// OPTIMIZED FOR 3000-4000 USERS (4x capacity increase)
+export const userCache = new OptimizedUserCache(800); // Max 800 users in memory (4x from 200)
+export const sessionCache = new LRUCache<any>(1200); // Max 1200 active sessions in memory (4x from 300)
 

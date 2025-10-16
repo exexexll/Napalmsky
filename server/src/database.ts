@@ -7,10 +7,11 @@
 import { Pool, QueryResult } from 'pg';
 
 // Initialize connection pool with better error handling
+// OPTIMIZED FOR 3000-4000 USERS (5x increase in connection capacity)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: parseInt(process.env.DATABASE_POOL_MAX || '10'), // Reduced from 20 to prevent connection issues
-  min: parseInt(process.env.DATABASE_POOL_MIN || '2'), // Minimum connections
+  max: parseInt(process.env.DATABASE_POOL_MAX || '50'), // Increased from 10 to 50 for high scale
+  min: parseInt(process.env.DATABASE_POOL_MIN || '10'), // Increased from 2 to 10 minimum connections
   idleTimeoutMillis: 60000, // Increased to 60s - Railway postgres needs longer timeout
   connectionTimeoutMillis: parseInt(process.env.DATABASE_TIMEOUT || '10000'), // Reduced to fail fast
   // Allow pool to recover from connection errors

@@ -1,6 +1,7 @@
 import { User, Session, ReferralNotification, Report, BanRecord, IPBan, InviteCode, RateLimitRecord } from './types';
 import { query } from './database';
 import { userCache, sessionCache } from './lru-cache';
+import { queryCache, generateCacheKey } from './query-cache';
 
 interface ChatMessage {
   from: string;
@@ -151,36 +152,50 @@ class DataStore {
   }
 
   async getUser(userId: string): Promise<User | undefined> {
-    // Check in-memory Map first (most recent updates)
-    let user = this.users.get(userId);
+    // OPTIMIZED FOR 3000-4000 USERS: Multi-level caching
     
-    // Then check LRU cache
-    if (!user) {
-      const cached = userCache.get(userId);
-      if (cached) {
-        user = cached as any;
-      }
+    // Level 1: Check in-memory Map first (most recent updates)
+    let user = this.users.get(userId);
+    if (user) return user;
+    
+    // Level 2: Check LRU cache
+    const cachedUser = userCache.get(userId);
+    if (cachedUser) {
+      // LRU cache returns LightweightUser, we'll fetch full data from DB if needed
+      user = cachedUser as unknown as User;
+      this.users.set(userId, user);
+      return user;
     }
     
-    // If not in memory/cache and we have database, check there
-    if (!user && this.useDatabase) {
+    // Level 3: Check query result cache (60s TTL)
+    const queryCacheKey = generateCacheKey('user', userId);
+    const queryCached = queryCache.get(queryCacheKey);
+    if (queryCached) {
+      user = queryCached as User;
+      this.users.set(userId, user);
+      userCache.set(userId, user);
+      console.log('[QueryCache] User cache HIT:', userId.substring(0, 8));
+      return user;
+    }
+    
+    // Level 4: Fetch from database (last resort)
+    if (this.useDatabase) {
       try {
         const result = await query('SELECT * FROM users WHERE user_id = $1', [userId]);
         if (result.rows.length > 0) {
           const row = result.rows[0];
           user = this.dbRowToUser(row);
           
-          console.log('[Store] User loaded from database:', userId.substring(0, 8));
+          // Cache in all levels
+          this.users.set(userId, user);
+          userCache.set(userId, user);
+          queryCache.set(queryCacheKey, user);
+          
+          console.log('[QueryCache] User cache MISS - cached:', userId.substring(0, 8));
         }
       } catch (error) {
         console.error('[Store] Failed to get user from database:', error);
       }
-    }
-    
-    // Always update cache with latest data
-    if (user) {
-      this.users.set(userId, user);
-      userCache.set(userId, user);
     }
     
     return user;
@@ -241,8 +256,11 @@ class DataStore {
     if (user) {
       const updatedUser = { ...user, ...updates };
       this.users.set(userId, updatedUser);
-      // CRITICAL: Also update LRU cache immediately to prevent stale reads
+      
+      // CRITICAL: Invalidate all caches immediately to prevent stale reads
       userCache.set(userId, updatedUser);
+      const queryCacheKey = generateCacheKey('user', userId);
+      queryCache.delete(queryCacheKey); // Force re-fetch from DB next time
       
       // Also update in database if available
       if (this.useDatabase) {
@@ -301,16 +319,29 @@ class DataStore {
   }
 
   async getSession(sessionToken: string): Promise<Session | undefined> {
-    // OPTIMIZATION: Check LRU cache first (limits memory for 1000+ sessions)
+    // OPTIMIZED FOR 3000-4000 USERS: Multi-level caching for sessions
+    
+    // Level 1: Check LRU cache first (limits memory for 1000+ sessions)
     const cached = sessionCache.get(sessionToken);
     if (cached && cached.expiresAt > Date.now()) {
       return cached;
     }
     
-    // Check in-memory Map
+    // Level 2: Check in-memory Map
     let session = this.sessions.get(sessionToken);
     
-    // Check database if not in memory
+    // Level 3: Check query result cache (60s TTL)
+    if (!session) {
+      const queryCacheKey = generateCacheKey('session', sessionToken);
+      const queryCached = queryCache.get(queryCacheKey);
+      if (queryCached && queryCached.expiresAt > Date.now()) {
+        session = queryCached;
+        sessionCache.set(sessionToken, session);
+        return session;
+      }
+    }
+    
+    // Level 4: Check database if not in memory/cache
     if (!session && this.useDatabase) {
       try {
         const result = await query('SELECT * FROM sessions WHERE session_token = $1 AND expires_at > NOW()', [sessionToken]);
@@ -324,8 +355,10 @@ class DataStore {
             ipAddress: row.ip_address,
           };
           
-          // Cache in LRU (not unlimited Map)
+          // Cache in all levels
           sessionCache.set(sessionToken, session);
+          const queryCacheKey = generateCacheKey('session', sessionToken);
+          queryCache.set(queryCacheKey, session);
         }
       } catch (error) {
         console.error('[Store] Failed to get session from database:', error);
@@ -334,17 +367,16 @@ class DataStore {
     
     // Check expiry
     if (session && session.expiresAt > Date.now()) {
-      // Cache valid session in LRU
-      if (!cached) {
-        sessionCache.set(sessionToken, session);
-      }
       return session;
     }
     
-    // Expired - clean up
+    // Expired - clean up from all caches
     if (session) {
       this.sessions.delete(sessionToken);
       sessionCache.delete(sessionToken);
+      const queryCacheKey = generateCacheKey('session', sessionToken);
+      queryCache.delete(queryCacheKey);
+      
       if (this.useDatabase) {
         try {
           await query('DELETE FROM sessions WHERE session_token = $1', [sessionToken]);

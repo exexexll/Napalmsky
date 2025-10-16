@@ -25,21 +25,23 @@ class MemoryManager {
   private readonly MAX_STATS_HISTORY = 60; // Keep last 60 readings
   
   // Thresholds (in MB)
-  private readonly WARNING_THRESHOLD = 400;
-  private readonly CRITICAL_THRESHOLD = 450;
+  // OPTIMIZED FOR 3000-4000 USERS (2GB+ instance recommended)
+  private readonly WARNING_THRESHOLD = 1200;  // Warn at 60% of 2GB
+  private readonly CRITICAL_THRESHOLD = 1400; // Critical at 70% of 2GB
+  // Note: For 4GB instance, increase to WARNING=3000, CRITICAL=3500
 
   start(): void {
     console.log('[MemoryManager] Starting memory management...');
     
-    // Run cleanup every 5 minutes
+    // Run cleanup every 3 minutes (more aggressive for 4000 users)
     this.cleanupInterval = setInterval(() => {
       this.runCleanup();
-    }, 5 * 60 * 1000);
+    }, 3 * 60 * 1000);
     
-    // Monitor memory every 30 seconds
+    // Monitor memory every 15 seconds (faster detection for high scale)
     this.monitorInterval = setInterval(() => {
       this.monitorMemory();
-    }, 30 * 1000);
+    }, 15 * 1000);
     
     // Run initial cleanup
     this.runCleanup();

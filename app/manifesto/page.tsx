@@ -108,13 +108,7 @@ export default function ManifestoPage() {
                 animate="visible"
                 className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
               >
-                This is a sanctuary for wanderers and seekers of true romance —
-                <br />
-                a refuge where burdens may be gently released and the spirit finds stillness.
-                <br />
-                A space to awaken the heart and fall in love with love in its purest form.
-                <br />
-                A place where every soul meets on equal ground: unbound by algorithms or labels — guided only by serendipity and the quiet pull of destiny.
+                Like everything that has happened in life, nobody is promised success. Even if you end up finding nobody, do cherish the moments, the laughter, and the time you told others how you really felt on this platform. Forget the rules, rationale or that stupid mental checklist everyone swears by. Live in the present. Carpe Diem! Hurry up and pick up your next call, because you only get one lifetime to find the person you love.
               </motion.p>
 
               <motion.p
@@ -124,21 +118,11 @@ export default function ManifestoPage() {
                 animate="visible"
                 className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
               >
-                Like everything that has happened in life, nobody is promised success. Even if you end up finding nobody, do cherish the moments, the laughter, and the time you told others how you really felt on this platform. Forget the rules, rationale or that stupid mental checklist everyone swears by. Live in the present. Carpe Diem! Hurry up and pick up your next call, because you only get one lifetime to find the person you love.
-              </motion.p>
-
-              <motion.p
-                custom={6}
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                className="font-inter text-lg font-bold leading-relaxed text-white/95 sm:text-xl motion-reduce:opacity-100 motion-reduce:translate-y-0"
-              >
                 Happy Speed-dating
               </motion.p>
 
               <motion.p
-                custom={7}
+                custom={6}
                 variants={fadeInVariants}
                 initial="hidden"
                 animate="visible"
