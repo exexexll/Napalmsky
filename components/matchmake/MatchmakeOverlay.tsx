@@ -585,8 +585,9 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
           <button
             onClick={handleClose}
             disabled={!!incomingInvite}
-            className="focus-ring rounded-full bg-black/60 p-3 backdrop-blur-md transition-all hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="focus-ring rounded-full bg-black/60 p-3 backdrop-blur-md transition-all hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Close matchmaking"
+            title={incomingInvite ? "Cannot close while receiving a call" : "Close matchmaking"}
           >
             <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
