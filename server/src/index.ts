@@ -957,6 +957,33 @@ io.on('connection', (socket) => {
   async function handleFullDisconnect(userId: string | null) {
     if (!userId) return; // Guard clause for null
     
+    // CRITICAL COOLDOWN FIX: Check if user has active outgoing invites
+    // If they disconnect while waiting, auto-rescind and set cooldown
+    const userActiveInvites = Array.from(store['activeInvites'].values()).filter(
+      inv => inv.fromUserId === userId
+    );
+    
+    if (userActiveInvites.length > 0) {
+      console.warn(`[Disconnect] User ${userId.substring(0, 8)} has ${userActiveInvites.length} active invites - auto-rescinding`);
+      
+      for (const invite of userActiveInvites) {
+        // Set 1h cooldown (same as manual rescind)
+        const cooldownUntil = Date.now() + (60 * 60 * 1000); // 1 hour
+        await store.setCooldown(invite.fromUserId, invite.toUserId, cooldownUntil);
+        console.log(`[Cooldown] Set 1h cooldown after disconnect: ${invite.fromUserId.substring(0, 8)} ↔ ${invite.toUserId.substring(0, 8)}`);
+        
+        // Notify the callee that invite was cancelled
+        const calleeSocket = activeSockets.get(invite.toUserId);
+        if (calleeSocket) {
+          io.to(calleeSocket).emit('call:rescinded', { inviteId: invite.inviteId });
+        }
+        
+        // Delete the invite
+        store.deleteInvite(invite.inviteId);
+        console.log(`[Disconnect] Cleaned up invite ${invite.inviteId}`);
+      }
+    }
+    
     // Remove from ADVANCED connection pool
     advancedConnectionManager.removeConnection(userId, socket.id);
     
