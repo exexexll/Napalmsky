@@ -159,10 +159,23 @@ function PaymentSuccessPageContent() {
 
             {/* Continue Button - Minimal */}
             <button
-              onClick={() => router.push('/main')}
+              onClick={() => {
+                // CRITICAL FIX: For referral users, go back to onboarding to show introduction screen
+                // Onboarding will detect: complete + paid + ref → show introduction
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasRef = urlParams.toString().includes('ref=') || sessionStorage.getItem('onboarding_ref_code');
+                
+                if (hasRef) {
+                  console.log('[Payment Success] Referral user - returning to onboarding for introduction screen');
+                  router.push('/onboarding');
+                } else {
+                  console.log('[Payment Success] Normal user - going to main');
+                  router.push('/main');
+                }
+              }}
               className="focus-ring w-full rounded-xl bg-[#ff9b6b] px-6 py-3 font-medium text-[#0a0a0c] transition-opacity hover:opacity-90"
             >
-              Continue to App →
+              Continue →
             </button>
           </motion.div>
         </div>

@@ -68,7 +68,16 @@ function OnboardingPageContent() {
     
     if (ref) {
       setReferralCode(ref);
+      // Store in sessionStorage so we don't lose it across redirects
+      sessionStorage.setItem('onboarding_ref_code', ref);
       console.log('[Onboarding] Referral code from URL:', ref);
+    } else {
+      // Check sessionStorage in case we lost URL params
+      const storedRef = sessionStorage.getItem('onboarding_ref_code');
+      if (storedRef) {
+        setReferralCode(storedRef);
+        console.log('[Onboarding] Referral code from sessionStorage:', storedRef);
+      }
     }
     
     // Check if user is already registered (has session)
@@ -383,7 +392,7 @@ function OnboardingPageContent() {
       uploadVideo(sessionToken, blob, (percent) => {
         setUploadProgress(percent);
       })
-        .then((data: any) => {
+        .then(async (data: any) => {
           console.log('[Onboarding] Video uploaded:', data.videoUrl);
           
           // If processing in background, show completion immediately
@@ -397,8 +406,8 @@ function OnboardingPageContent() {
             setShowUploadProgress(false);
             setUploadProgress(0);
           }, 1000);
+          
           // Stream already stopped in stopVideoRecording, but double-check
-          // Use state updater to get latest stream value
           setStream(prevStream => {
             if (prevStream) {
               console.log('[Onboarding] Stopping any remaining camera/mic streams');
@@ -410,17 +419,58 @@ function OnboardingPageContent() {
             }
             return null;
           });
-          // If was introduced, show introduction screen, otherwise go to permanent
-          if (targetUser) {
-            setStep('introduction');
-          } else {
-            setStep('permanent');
+          
+          // CRITICAL FIX: After profile completion (selfie + video), check payment!
+          // This ensures payment flow happens for referral users
+          console.log('[Onboarding] Profile complete - checking payment status...');
+          
+          try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/payment/status`, {
+              headers: { 'Authorization': `Bearer ${sessionToken}` },
+            });
+            const paymentData = await res.json();
+            const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified';
+            
+            if (hasPaid) {
+              // Already verified - proceed to next step
+              // Check if this is a referral user (has ref code stored)
+              const storedRef = sessionStorage.getItem('onboarding_ref_code');
+              
+              if (targetUser || storedRef) {
+                // Fetch target user info if we have ref code but not targetUser yet
+                if (storedRef && !targetUser) {
+                  console.log('[Onboarding] Has ref code, fetching target user...');
+                  try {
+                    const refData = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/referral/info/${storedRef}`).then(r => r.json());
+                    setTargetUser(refData.targetUser);
+                    setReferrerName(refData.createdBy);
+                    console.log('[Onboarding] Target user loaded:', refData.targetUser?.name);
+                  } catch (e) {
+                    console.error('[Onboarding] Failed to fetch target:', e);
+                  }
+                }
+                console.log('[Onboarding] Paid + has target - showing introduction screen');
+                setStep('introduction');
+              } else {
+                console.log('[Onboarding] Paid - showing permanent account option');
+                setStep('permanent');
+              }
+            } else {
+              // NOT verified - redirect to paywall for payment
+              console.log('[Onboarding] Profile complete but unpaid - redirecting to paywall');
+              sessionStorage.setItem('redirecting_to_paywall', 'true');
+              router.push('/paywall');
+            }
+          } catch (err) {
+            console.error('[Onboarding] Payment check failed after video:', err);
+            // On error, go to paywall to be safe
+            router.push('/paywall');
           }
         })
         .catch((err) => setError(err.message))
         .finally(() => setLoading(false));
     }
-  }, [recordedChunks, isRecording, sessionToken, targetUser]); // stream not needed - using state updater
+  }, [recordedChunks, isRecording, sessionToken, targetUser, router]); // stream not needed - using state updater
 
   /**
    * Step 4: Check payment and redirect appropriately
