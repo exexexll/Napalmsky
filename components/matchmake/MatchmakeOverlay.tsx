@@ -530,6 +530,29 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     };
   }, [inviteStatuses]);
 
+  // CRITICAL: Block browser back navigation during waiting state
+  useEffect(() => {
+    const hasWaitingInvite = Object.values(inviteStatuses).includes('waiting');
+    
+    if (hasWaitingInvite) {
+      // Push a dummy state to prevent immediate back navigation
+      window.history.pushState(null, '', window.location.href);
+      
+      const handlePopState = (e: PopStateEvent) => {
+        // Prevent back navigation during waiting
+        console.log('[Matchmake] ⚠️ Back navigation blocked - user is waiting for response');
+        window.history.pushState(null, '', window.location.href);
+        showToast('Cannot go back while waiting for a response. Cancel the invite first.', 'error');
+      };
+      
+      window.addEventListener('popstate', handlePopState);
+      
+      return () => {
+        window.removeEventListener('popstate', handlePopState);
+      };
+    }
+  }, [inviteStatuses]);
+
   // Handle invite
   const handleInvite = (toUserId: string, requestedSeconds: number) => {
     if (!socketRef.current) {
