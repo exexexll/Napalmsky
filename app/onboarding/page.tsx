@@ -550,7 +550,7 @@ function OnboardingPageContent() {
                       </h3>
                     </div>
                     <p className="text-sm text-[#eaeaf0]/80">
-                      A friend thought you two might click. Complete signup and you&apos;ll find {referrerName || 'them'} in matchmaking with a special introduction badge!
+                      After signup, click <span className="font-bold">Matchmake Now</span> to find {referrerName || 'them'} in the queue and call!
                     </p>
                   </div>
                 )}
