@@ -6,7 +6,7 @@ import html from 'remark-html';
 
 export const metadata = {
   title: 'Terms of Service - Napalm Sky',
-  description: 'Terms of Service for Napalm Sky speed-dating platform',
+  description: 'Terms of Service for Napalm Sky 1-1 Video Social Network',
 };
 
 async function getTermsContent() {

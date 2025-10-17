@@ -18,7 +18,7 @@ export default function HomePage() {
               </h2>
               <div className="space-y-4 text-base leading-relaxed text-[#e6e6e9]/90 sm:text-lg">
                 <p>
-                  Napalm Sky is a speeddating platform built for authentic human connection in an age of endless swiping. Every call lasts up to 500 seconds—no more, no less. When the time runs out, the conversation ends, and you decide if you want to connect again.
+                  Napalm Sky is a 1-1 Video Social Network built for authentic human connection in an age of endless swiping. Every call lasts up to 500 seconds—no more, no less. When the time runs out, the conversation ends, and you decide if you want to connect again.
                 </p>
                 <p>
                   No profiles to curate. No photos to judge. Just two people, 500 seconds, and a chance to see if something real can happen. Genuine connection shouldn&apos;t require a perfect bio.
@@ -59,7 +59,7 @@ export default function HomePage() {
                 href="/manifesto"
                 className="text-[#e6e6e9]/50 transition-colors hover:text-[#ff9b6b]"
               >
-                Manifesto
+                Meet Who and Do What?
               </Link>
             </div>
             <p className="mt-3 text-xs text-[#e6e6e9]/40">

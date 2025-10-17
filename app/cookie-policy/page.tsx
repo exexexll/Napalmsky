@@ -6,7 +6,7 @@ import html from 'remark-html';
 
 export const metadata = {
   title: 'Cookie Policy - Napalm Sky',
-  description: 'Cookie Policy for Napalm Sky speed-dating platform',
+  description: 'Cookie Policy for Napalm Sky 1-1 Video Social Network',
 };
 
 async function getCookieContent() {

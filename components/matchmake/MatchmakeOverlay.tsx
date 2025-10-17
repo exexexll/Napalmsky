@@ -27,8 +27,32 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'info' } | null>(null);
   const [totalAvailable, setTotalAvailable] = useState(0); // Total available count (before reported user filter)
   const [autoInviteSent, setAutoInviteSent] = useState(false);
+  const [isHovered, setIsHovered] = useState(true); // Track hover state for navigation arrows
   
   const socketRef = useRef<any>(null);
+
+  // Prevent body scroll when matchmaking is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      
+      // Prevent scrolling on body
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      return () => {
+        // Restore scrolling
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
 
   // Load initial queue (no shuffling, consistent order)
   const loadInitialQueue = useCallback(async () => {
@@ -655,7 +679,11 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
   return (
     <>
       {/* Transparent Overlay - Only Card Visible */}
-      <div className="fixed inset-0 z-50 flex flex-col">
+      <div 
+        className="fixed inset-0 z-50 flex flex-col"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         {/* Compact Header - Top Right */}
         <div className="absolute top-6 right-6 flex items-center gap-4 z-20">
           <div className="text-right">
@@ -725,30 +753,42 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
                   </AnimatePresence>
                 </div>
 
-                {/* Navigation Arrows - Vertical (Hidden when waiting for response) */}
-                {currentIndex > 0 && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && (
-                  <button
-                    onClick={goToPrevious}
-                    className="focus-ring absolute left-1/2 top-48 -translate-x-1/2 z-20 rounded-full bg-black/70 p-4 backdrop-blur-md transition-all hover:bg-black/90 shadow-lg"
-                    aria-label="Previous user"
-                  >
-                    <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-                    </svg>
-                  </button>
-                )}
+                {/* Navigation Arrows - Vertical (Fade with hover, hidden when waiting) */}
+                <AnimatePresence>
+                  {currentIndex > 0 && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && isHovered && (
+                    <motion.button
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={goToPrevious}
+                      className="focus-ring absolute left-1/2 top-32 -translate-x-1/2 z-20 rounded-full bg-black/70 p-4 backdrop-blur-md transition-all hover:bg-black/90 shadow-lg"
+                      aria-label="Previous user"
+                    >
+                      <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                      </svg>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
 
-                {(currentIndex < users.length - 1 || hasMore) && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && (
-                  <button
-                    onClick={goToNext}
-                    className="focus-ring absolute left-1/2 bottom-56 -translate-x-1/2 z-20 rounded-full bg-black/70 p-4 backdrop-blur-md transition-all hover:bg-black/90 shadow-lg"
-                    aria-label="Next user"
-                  >
-                    <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                )}
+                <AnimatePresence>
+                  {(currentIndex < users.length - 1 || hasMore) && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && isHovered && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={goToNext}
+                      className="focus-ring absolute left-1/2 bottom-72 -translate-x-1/2 z-20 rounded-full bg-black/70 p-4 backdrop-blur-md transition-all hover:bg-black/90 shadow-lg"
+                      aria-label="Next user"
+                    >
+                      <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
 
                 {/* Progress Indicator - Right Side */}
                 <div className="absolute right-8 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-2">

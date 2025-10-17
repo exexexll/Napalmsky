@@ -6,7 +6,7 @@ import html from 'remark-html';
 
 export const metadata = {
   title: 'Acceptable Use Policy - Napalm Sky',
-  description: 'Acceptable Use Policy for Napalm Sky speed-dating platform',
+  description: 'Acceptable Use Policy for Napalm Sky 1-1 Video Social Network',
 };
 
 async function getAUPContent() {

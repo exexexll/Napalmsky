@@ -6,7 +6,7 @@ import html from 'remark-html';
 
 export const metadata = {
   title: 'Community Guidelines - Napalm Sky',
-  description: 'Community Guidelines for Napalm Sky speed-dating platform',
+  description: 'Community Guidelines for Napalm Sky 1-1 Video Social Network',
 };
 
 async function getGuidelinesContent() {

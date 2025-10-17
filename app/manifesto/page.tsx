@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
+// Detect if device is mobile for performance optimization
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+};
+
 const meetPeopleReasons = [
   "to complain about professors.",
   "to split an Uber.",
@@ -118,6 +124,12 @@ const slangTerms = [
 
 export default function ManifestoPage() {
   const [currentReasonIndex, setCurrentReasonIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile on mount
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+  }, []);
 
   // Randomize starting sentence on mount
   useEffect(() => {
@@ -134,8 +146,10 @@ export default function ManifestoPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Duplicate slang for infinite scroll
-  const slangRow = [...slangTerms, ...slangTerms, ...slangTerms];
+  // Duplicate slang for infinite scroll (reduce for mobile performance)
+  const slangRow = isMobile 
+    ? [...slangTerms, ...slangTerms] 
+    : [...slangTerms, ...slangTerms, ...slangTerms];
 
   return (
     <main id="main" className="relative min-h-screen bg-[#0a0a0c] overflow-hidden">
@@ -144,8 +158,9 @@ export default function ManifestoPage() {
         <div className="w-full h-full bg-gradient-radial from-[#ff9b6b]/15 via-[#ff9b6b]/5 to-transparent blur-3xl" />
       </div>
 
-      {/* Animated Slang Background - Full Page Coverage */}
+      {/* Animated Slang Background - Full Page Coverage (Optimized for mobile) */}
       <div className="absolute inset-0 z-0 overflow-hidden opacity-8">
+        {/* Mobile: Only 4 rows for performance. Desktop: 8 rows */}
         {/* Row 1 - Top - Moving Left */}
         <div className="absolute top-[5%] left-0 whitespace-nowrap">
           <motion.div
@@ -238,97 +253,102 @@ export default function ManifestoPage() {
           </motion.div>
         </div>
 
-        {/* Row 5 - Moving Left */}
-        <div className="absolute top-[57%] left-0 whitespace-nowrap">
-          <motion.div
-            className="flex gap-4"
-            animate={{ x: [0, -2400] }}
-            transition={{
-              duration: 50,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          >
-            {slangRow.map((slang, i) => (
-              <div
-                key={`row5-${i}`}
-                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
-                           font-mono text-lg font-bold text-white/30"
+        {/* Rows 5-8: Desktop only for performance */}
+        {!isMobile && (
+          <>
+            {/* Row 5 - Moving Left */}
+            <div className="absolute top-[57%] left-0 whitespace-nowrap">
+              <motion.div
+                className="flex gap-4"
+                animate={{ x: [0, -2400] }}
+                transition={{
+                  duration: 50,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
               >
-                {slang}
-              </div>
-            ))}
-          </motion.div>
-        </div>
+                {slangRow.map((slang, i) => (
+                  <div
+                    key={`row5-${i}`}
+                    className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                               font-mono text-lg font-bold text-white/30"
+                  >
+                    {slang}
+                  </div>
+                ))}
+              </motion.div>
+            </div>
 
-        {/* Row 6 - Moving Right */}
-        <div className="absolute top-[70%] left-0 whitespace-nowrap">
-          <motion.div
-            className="flex gap-4"
-            animate={{ x: [-2400, 0] }}
-            transition={{
-              duration: 65,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          >
-            {slangRow.map((slang, i) => (
-              <div
-                key={`row6-${i}`}
-                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
-                           font-mono text-lg font-bold text-white/30"
+            {/* Row 6 - Moving Right */}
+            <div className="absolute top-[70%] left-0 whitespace-nowrap">
+              <motion.div
+                className="flex gap-4"
+                animate={{ x: [-2400, 0] }}
+                transition={{
+                  duration: 65,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
               >
-                {slang}
-              </div>
-            ))}
-          </motion.div>
-        </div>
+                {slangRow.map((slang, i) => (
+                  <div
+                    key={`row6-${i}`}
+                    className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                               font-mono text-lg font-bold text-white/30"
+                  >
+                    {slang}
+                  </div>
+                ))}
+              </motion.div>
+            </div>
 
-        {/* Row 7 - Moving Left */}
-        <div className="absolute top-[83%] left-0 whitespace-nowrap">
-          <motion.div
-            className="flex gap-4"
-            animate={{ x: [0, -2400] }}
-            transition={{
-              duration: 55,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          >
-            {slangRow.map((slang, i) => (
-              <div
-                key={`row7-${i}`}
-                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
-                           font-mono text-lg font-bold text-white/30"
+            {/* Row 7 - Moving Left */}
+            <div className="absolute top-[83%] left-0 whitespace-nowrap">
+              <motion.div
+                className="flex gap-4"
+                animate={{ x: [0, -2400] }}
+                transition={{
+                  duration: 55,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
               >
-                {slang}
-              </div>
-            ))}
-          </motion.div>
-        </div>
+                {slangRow.map((slang, i) => (
+                  <div
+                    key={`row7-${i}`}
+                    className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                               font-mono text-lg font-bold text-white/30"
+                  >
+                    {slang}
+                  </div>
+                ))}
+              </motion.div>
+            </div>
 
-        {/* Row 8 - Bottom - Moving Right */}
-        <div className="absolute top-[96%] left-0 whitespace-nowrap">
-          <motion.div
-            className="flex gap-4"
-            animate={{ x: [-2400, 0] }}
-            transition={{
-              duration: 60,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-          >
-            {slangRow.map((slang, i) => (
-              <div
-                key={`row8-${i}`}
-                className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
-                           font-mono text-lg font-bold text-white/30"
+            {/* Row 8 - Bottom - Moving Right */}
+            <div className="absolute top-[96%] left-0 whitespace-nowrap">
+              <motion.div
+                className="flex gap-4"
+                animate={{ x: [-2400, 0] }}
+                transition={{
+                  duration: 60,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
               >
-                {slang}
-              </div>
-            ))}
-          </motion.div>
-        </div>
+                {slangRow.map((slang, i) => (
+                  <div
+                    key={`row8-${i}`}
+                    className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
+                               font-mono text-lg font-bold text-white/30"
+                  >
+                    {slang}
+                  </div>
+                ))}
+              </motion.div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Main Content - Overlaid on top */}

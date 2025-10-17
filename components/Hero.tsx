@@ -149,7 +149,7 @@ export function Hero() {
               </button>
             )}
             <Button variant="ghost" href="/manifesto">
-              Read the manifesto
+              Meet Who and Do What?
             </Button>
           </div>
 

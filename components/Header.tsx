@@ -75,7 +75,7 @@ export function Header() {
                   pathname === '/manifesto' ? 'text-[#ff9b6b]' : 'text-[#e6e6e9]'
                 )}
               >
-                Manifesto
+                Meet Who and Do What?
               </Link>
             </li>
             <li>
