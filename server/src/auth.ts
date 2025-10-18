@@ -15,13 +15,13 @@ export function createAuthRoutes(
 ) {
   const router = express.Router();
 
-/**
- * POST /auth/guest
- * Create a temporary guest account
- * Optional: referralCode to track who referred this user
- * Optional: inviteCode for paywall bypass (QR code access)
- */
-router.post('/guest', async (req: any, res) => {
+  /**
+   * POST /auth/guest
+   * Create a temporary guest account
+   * Optional: referralCode to track who referred this user
+   * Optional: inviteCode for paywall bypass (QR code access)
+   */
+  router.post('/guest', async (req: any, res) => {
   const { name, gender, referralCode, inviteCode } = req.body;
   const ip = req.userIp; // Set by middleware with centralized IP extraction
 
@@ -235,11 +235,11 @@ router.post('/link', async (req, res) => {
   });
 });
 
-/**
- * POST /auth/login
- * Login with email+password (permanent users only)
- */
-router.post('/login', async (req: any, res) => {
+  /**
+   * POST /auth/login
+   * Login with email+password (permanent users only)
+   */
+  router.post('/login', async (req: any, res) => {
   const { email, password } = req.body;
   const ip = req.userIp; // Set by middleware with centralized IP extraction
 
