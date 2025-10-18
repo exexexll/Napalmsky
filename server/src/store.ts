@@ -1259,6 +1259,11 @@ class DataStore {
           [totalSessions, userId]
         );
         
+        // CRITICAL: Invalidate cache so next getUser returns fresh data
+        userCache.delete(userId);
+        const queryCacheKey = generateCacheKey('user', userId);
+        queryCache.delete(queryCacheKey);
+        
         // Check if should unlock QR (4+ sessions and not already unlocked)
         if (totalSessions >= 4) {
           const userResult = await query(
@@ -1310,10 +1315,31 @@ class DataStore {
   
   /**
    * Get user's QR unlock status
+   * ALWAYS queries database for accurate real-time count
    */
   async getQrUnlockStatus(userId: string): Promise<{ unlocked: boolean; sessionsCompleted: number; sessionsNeeded: number }> {
-    const user = await this.getUser(userId);
+    // Query database directly for most accurate count (bypass cache)
+    if (this.useDatabase) {
+      try {
+        const result = await query(
+          'SELECT qr_unlocked, successful_sessions FROM users WHERE user_id = $1',
+          [userId]
+        );
+        
+        if (result.rows[0]) {
+          return {
+            unlocked: result.rows[0].qr_unlocked || false,
+            sessionsCompleted: result.rows[0].successful_sessions || 0,
+            sessionsNeeded: 4,
+          };
+        }
+      } catch (error) {
+        console.error('[Store] Failed to get QR status from database:', error);
+      }
+    }
     
+    // Fallback to memory/cache
+    const user = await this.getUser(userId);
     return {
       unlocked: user?.qrUnlocked || false,
       sessionsCompleted: user?.successfulSessions || 0,
