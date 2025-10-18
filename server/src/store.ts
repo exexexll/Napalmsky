@@ -117,11 +117,13 @@ class DataStore {
           await query(
             `INSERT INTO users (user_id, name, gender, account_type, email, password_hash, selfie_url, video_url, 
              socials, paid_status, paid_at, payment_id, invite_code_used, my_invite_code, invite_code_uses_remaining,
-             ban_status, introduced_to, introduced_by, introduced_via_code)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+             ban_status, introduced_to, introduced_by, introduced_via_code, qr_unlocked, successful_sessions)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
              ON CONFLICT (user_id) DO UPDATE SET
                name = EXCLUDED.name,
-               paid_status = EXCLUDED.paid_status`,
+               paid_status = EXCLUDED.paid_status,
+               qr_unlocked = EXCLUDED.qr_unlocked,
+               successful_sessions = EXCLUDED.successful_sessions`,
             [
               user.userId, user.name, user.gender, user.accountType, user.email || null,
               user.password_hash || null, user.selfieUrl || null, user.videoUrl || null,
@@ -129,7 +131,7 @@ class DataStore {
               user.paidAt ? new Date(user.paidAt) : null, user.paymentId || null,
               user.inviteCodeUsed || null, user.myInviteCode || null, user.inviteCodeUsesRemaining || 0,
               user.banStatus || 'none', user.introducedTo || null, user.introducedBy || null,
-              user.introducedViaCode || null
+              user.introducedViaCode || null, user.qrUnlocked || false, user.successfulSessions || 0
             ]
           );
           console.log('[Store] ✅ User created in PostgreSQL:', user.userId.substring(0, 8));
@@ -219,6 +221,9 @@ class DataStore {
       inviteCodeUsed: row.invite_code_used,
       myInviteCode: row.my_invite_code,
       inviteCodeUsesRemaining: row.invite_code_uses_remaining,
+      qrUnlocked: row.qr_unlocked || false,
+      successfulSessions: row.successful_sessions || 0,
+      qrUnlockedAt: row.qr_unlocked_at ? new Date(row.qr_unlocked_at).getTime() : undefined,
       banStatus: row.ban_status,
       bannedAt: row.banned_at ? new Date(row.banned_at).getTime() : undefined,
       bannedReason: row.banned_reason,
@@ -308,10 +313,24 @@ class DataStore {
     if (this.useDatabase) {
       try {
         await query(
-          `INSERT INTO sessions (session_token, user_id, ip_address, created_at, expires_at)
-           VALUES ($1, $2, $3, $4, $5) ON CONFLICT (session_token) DO UPDATE SET expires_at = EXCLUDED.expires_at`,
-          [session.sessionToken, session.userId, session.ipAddress || null, new Date(session.createdAt), new Date(session.expiresAt)]
+          `INSERT INTO sessions (session_token, user_id, ip_address, device_info, is_active, last_active_at, created_at, expires_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+           ON CONFLICT (session_token) DO UPDATE SET 
+             expires_at = EXCLUDED.expires_at,
+             is_active = EXCLUDED.is_active,
+             last_active_at = EXCLUDED.last_active_at`,
+          [
+            session.sessionToken, 
+            session.userId, 
+            session.ipAddress || null,
+            session.deviceInfo || null,
+            session.isActive !== false, // Default to true
+            new Date(session.lastActiveAt || session.createdAt),
+            new Date(session.createdAt), 
+            new Date(session.expiresAt)
+          ]
         );
+        console.log('[Store] Session created with device_info:', session.deviceInfo?.substring(0, 50));
       } catch (error) {
         console.error('[Store] Failed to create session in database:', error);
       }
@@ -353,6 +372,9 @@ class DataStore {
             createdAt: new Date(row.created_at).getTime(),
             expiresAt: new Date(row.expires_at).getTime(),
             ipAddress: row.ip_address,
+            deviceInfo: row.device_info,
+            isActive: row.is_active !== false, // Default to true for backward compatibility
+            lastActiveAt: row.last_active_at ? new Date(row.last_active_at).getTime() : new Date(row.created_at).getTime(),
           };
           
           // Cache in all levels
