@@ -37,6 +37,7 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   const [isHovered, setIsHovered] = useState(true); // Start with full UI visible
   const [hasMounted, setHasMounted] = useState(false); // Track if component has mounted
   const [isVideoPaused, setIsVideoPaused] = useState(false); // Track manual pause state
+  const [videoOrientation, setVideoOrientation] = useState<'portrait' | 'landscape' | 'unknown'>('unknown');
   const videoRef = useRef<HTMLVideoElement>(null);
   const waitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -45,6 +46,30 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   
   // Detect mobile Safari for compact UI
   const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // Detect video orientation when metadata loads
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      const { videoWidth, videoHeight } = video;
+      const orientation = videoHeight > videoWidth ? 'portrait' : 'landscape';
+      setVideoOrientation(orientation);
+      console.log('[UserCard] Video orientation detected:', orientation, `(${videoWidth}x${videoHeight})`);
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    
+    // Check if metadata already loaded
+    if (video.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [user.videoUrl]);
 
   // Set mounted flag after initial render (prevents glitch on card change)
   useEffect(() => {
@@ -402,10 +427,16 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
       </motion.div>
 
       {/* Full Height Video */}
-      <div className="relative flex-1 bg-black">
+      <div className="relative flex-1 bg-black flex items-center justify-center">
         {user.videoUrl ? (
           <div 
-            className="relative h-full w-full cursor-pointer"
+            className={`relative cursor-pointer ${
+              videoOrientation === 'portrait' 
+                ? 'h-full w-auto max-w-full' // Portrait: full height, auto width
+                : videoOrientation === 'landscape'
+                ? 'w-full h-auto max-h-full' // Landscape: full width, auto height
+                : 'h-full w-full' // Unknown: fill container
+            }`}
             onClick={handleVideoInteraction}
             onTouchEnd={handleVideoInteraction}
           >
@@ -414,7 +445,13 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
               src={user.videoUrl}
               loop
               playsInline
-              className="h-full w-full object-contain"
+              className={`${
+                videoOrientation === 'portrait'
+                  ? 'h-full w-auto' // Portrait: maintain aspect, full height
+                  : videoOrientation === 'landscape'
+                  ? 'w-full h-auto' // Landscape: maintain aspect, full width
+                  : 'h-full w-full object-contain' // Unknown: use object-contain as fallback
+              }`}
             />
             {/* Pause indicator */}
             {isVideoPaused && (

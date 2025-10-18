@@ -24,9 +24,26 @@ interface CalleeNotificationProps {
 export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotificationProps) {
   const [seconds, setSeconds] = useState(invite.requestedSeconds);
   const [timeLeft, setTimeLeft] = useState(20); // Changed to 20s to respond
+  const [videoOrientation, setVideoOrientation] = useState<'portrait' | 'landscape' | 'unknown'>('unknown');
   const videoRef = useRef<HTMLVideoElement>(null);
   const firstFocusRef = useRef<HTMLButtonElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Detect video orientation
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleLoadedMetadata = () => {
+      const { videoWidth, videoHeight } = video;
+      setVideoOrientation(videoHeight > videoWidth ? 'portrait' : 'landscape');
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    if (video.readyState >= 1) handleLoadedMetadata();
+
+    return () => video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+  }, []);
 
   // Countdown for decision timer
   useEffect(() => {
@@ -150,8 +167,8 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
 
           {/* Intro Video Preview */}
           {invite.fromUser.videoUrl && (
-            <div className={`relative overflow-hidden rounded-xl bg-black ${
-              isMobile ? 'aspect-video max-h-40' : 'aspect-video'
+            <div className={`relative overflow-hidden rounded-xl bg-black flex items-center justify-center ${
+              isMobile ? 'max-h-48' : 'max-h-64'
             }`}>
               <video
                 ref={videoRef}
@@ -160,7 +177,11 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
                 loop
                 muted
                 playsInline
-                className="h-full w-full object-cover"
+                className={`${
+                  videoOrientation === 'portrait'
+                    ? 'h-full w-auto max-w-full' // Portrait: full height, auto width
+                    : 'w-full h-auto max-h-full' // Landscape/unknown: full width, auto height
+                } object-contain`}
               />
             </div>
           )}
