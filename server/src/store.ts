@@ -289,6 +289,10 @@ class DataStore {
           if (updates.inviteCodeUsed !== undefined) { setClauses.push(`invite_code_used = $${paramIndex++}`); values.push(updates.inviteCodeUsed); }
           if (updates.banStatus !== undefined) { setClauses.push(`ban_status = $${paramIndex++}`); values.push(updates.banStatus); }
           if (updates.accountType !== undefined) { setClauses.push(`account_type = $${paramIndex++}`); values.push(updates.accountType); }
+          // NEW QR FIELDS
+          if (updates.qrUnlocked !== undefined) { setClauses.push(`qr_unlocked = $${paramIndex++}`); values.push(updates.qrUnlocked); }
+          if (updates.successfulSessions !== undefined) { setClauses.push(`successful_sessions = $${paramIndex++}`); values.push(updates.successfulSessions); }
+          if (updates.qrUnlockedAt !== undefined) { setClauses.push(`qr_unlocked_at = $${paramIndex++}`); values.push(updates.qrUnlockedAt ? new Date(updates.qrUnlockedAt) : null); }
           
           if (setClauses.length > 0) {
             values.push(userId);

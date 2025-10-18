@@ -11,28 +11,42 @@ export function SessionInvalidatedModal() {
   const router = useRouter();
 
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-
-    const handleSessionInvalidated = ({ message, reason }: { message: string; reason: string }) => {
-      console.log('[SessionInvalidated] Received logout notification:', reason);
-      setMessage(message);
-      setShow(true);
+    // Get session to connect socket
+    const sessionData = localStorage.getItem('napalmsky_session');
+    if (!sessionData) return;
+    
+    try {
+      const { sessionToken } = JSON.parse(sessionData);
+      if (!sessionToken) return;
       
-      // Clear local session
-      localStorage.removeItem('napalmsky_session');
+      // Connect socket with session token
+      const { connectSocket } = require('@/lib/socket');
+      const socket = connectSocket(sessionToken);
       
-      // Auto-redirect after 5 seconds
-      setTimeout(() => {
-        router.push('/login');
-      }, 5000);
-    };
+      if (!socket) return;
 
-    socket.on('session:invalidated', handleSessionInvalidated);
+      const handleSessionInvalidated = ({ message, reason }: { message: string; reason: string }) => {
+        console.log('[SessionInvalidated] Received logout notification:', reason);
+        setMessage(message);
+        setShow(true);
+        
+        // Clear local session
+        localStorage.removeItem('napalmsky_session');
+        
+        // Auto-redirect after 5 seconds
+        setTimeout(() => {
+          router.push('/login');
+        }, 5000);
+      };
 
-    return () => {
-      socket.off('session:invalidated', handleSessionInvalidated);
-    };
+      socket.on('session:invalidated', handleSessionInvalidated);
+
+      return () => {
+        socket.off('session:invalidated', handleSessionInvalidated);
+      };
+    } catch (error) {
+      console.error('[SessionInvalidated] Failed to setup listener:', error);
+    }
   }, [router]);
 
   const handleOk = () => {

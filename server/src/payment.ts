@@ -347,6 +347,9 @@ router.get('/status', requireAuth, async (req: any, res) => {
           myInviteCode: row.my_invite_code,
           inviteCodeUsesRemaining: row.invite_code_uses_remaining,
           inviteCodeUsed: row.invite_code_used,
+          qrUnlocked: row.qr_unlocked || false,
+          successfulSessions: row.successful_sessions || 0,
+          qrUnlockedAt: row.qr_unlocked_at ? new Date(row.qr_unlocked_at).getTime() : undefined,
         };
       }
     } catch (error) {
@@ -384,6 +387,9 @@ router.get('/status', requireAuth, async (req: any, res) => {
     inviteCodeUsesRemaining: myCodeInfo?.usesRemaining || user.inviteCodeUsesRemaining || 0,
     myCodeInfo, // Full code details
     inviteCodeUsed: user.inviteCodeUsed, // Which code they used to sign up
+    qrUnlocked: user.qrUnlocked || false,
+    successfulSessions: user.successfulSessions || 0,
+    qrUnlockedAt: user.qrUnlockedAt,
   });
 });
 
