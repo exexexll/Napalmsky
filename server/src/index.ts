@@ -1,6 +1,9 @@
 // Load environment variables FIRST before any other imports
 import 'dotenv/config';
 
+// Force Railway rebuild - Security features deployment
+// Build timestamp: 2025-10-18T04:45:00Z
+
 import express from 'express';
 import http from 'http';
 import { Server as SocketServer } from 'socket.io';
