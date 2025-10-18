@@ -86,6 +86,8 @@ export default function RoomPage() {
   
   // Connecting phase tracking
   const [connectionPhase, setConnectionPhase] = useState<'initializing' | 'gathering' | 'connecting' | 'connected'>('initializing');
+  const [connectionTimeout, setConnectionTimeout] = useState(false);
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Refs
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -138,20 +140,20 @@ export default function RoomPage() {
         
         console.log('[Media] Browser detection:', { isSafari, isMobile });
         
-        // Safari-optimized media constraints
+        // Optimized media constraints for full view capture
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
-            width: { ideal: isMobile ? 640 : 1280 }, 
-            height: { ideal: isMobile ? 480 : 720 },
-            facingMode: isMobile ? 'user' : undefined, // Front camera on mobile
-            frameRate: { ideal: isMobile ? 24 : 30 }, // Lower framerate for mobile
+            facingMode: 'user', // Front camera
+            aspectRatio: { ideal: isMobile ? 9/16 : 16/9 }, // Vertical on mobile, horizontal on desktop
+            width: { min: 480, ideal: isMobile ? 720 : 1280, max: 1920 },
+            height: { min: 480, ideal: isMobile ? 1280 : 720, max: 1920 },
+            frameRate: { ideal: isMobile ? 24 : 30 },
           },
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
-            // Safari-specific: Lower sample rate for mobile
-            ...(isSafari && isMobile && { sampleRate: 16000 })
+            sampleRate: isMobile ? 16000 : 48000,
           }
         });
 
@@ -237,6 +239,14 @@ export default function RoomPage() {
           if (remoteVideoRef.current && event.streams[0]) {
             remoteVideoRef.current.srcObject = event.streams[0];
             setRemoteTrackReceived(true);
+            setConnectionPhase('connected');
+            
+            // Clear connection timeout on successful connection
+            if (connectionTimeoutRef.current) {
+              clearTimeout(connectionTimeoutRef.current);
+              connectionTimeoutRef.current = null;
+              console.log('[WebRTC] Connection timeout cleared - successfully connected');
+            }
             // Timer will start via useEffect when both conditions are met
           }
         };
@@ -432,6 +442,14 @@ export default function RoomPage() {
           
           socket.emit('rtc:offer', { roomId, offer });
           console.log('[WebRTC] ✅ Offer sent via socket');
+          
+          // Start connection timeout (45 seconds)
+          connectionTimeoutRef.current = setTimeout(() => {
+            if (connectionPhase !== 'connected') {
+              console.error('[WebRTC] Connection timeout - peer may have failed to connect');
+              setConnectionTimeout(true);
+            }
+          }, 45000);
         } else {
           console.log('[WebRTC] Waiting for offer (responder role)');
         }
@@ -856,7 +874,7 @@ export default function RoomPage() {
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
             {!remoteVideoRef.current?.srcObject && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/80">
@@ -879,7 +897,7 @@ export default function RoomPage() {
               autoPlay
               playsInline
               muted
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           </div>
         </div>
@@ -1133,7 +1151,7 @@ export default function RoomPage() {
       )}
 
       {/* Connecting Loading Screen */}
-      {connectionPhase !== 'connected' && (
+      {connectionPhase !== 'connected' && !connectionTimeout && (
         <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -1172,6 +1190,59 @@ export default function RoomPage() {
             <p className="text-xs text-white/40 max-w-sm mx-auto">
               {connectionPhase === 'connecting' && 'This may take a few seconds on mobile networks'}
             </p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Connection Timeout Error */}
+      {connectionTimeout && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-6">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center space-y-6 max-w-md"
+          >
+            {/* Error Icon */}
+            <div className="mx-auto w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center">
+              <svg className="w-12 h-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+
+            {/* Error Message */}
+            <div className="space-y-2">
+              <h3 className="font-playfair text-2xl font-bold text-white">
+                Connection Failed
+              </h3>
+              <p className="text-white/70">
+                {peerName} may have connection issues or closed the app. The connection timed out after 45 seconds.
+              </p>
+            </div>
+
+            {/* Help Text */}
+            <div className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 p-4">
+              <p className="text-sm text-yellow-200">
+                This can happen due to poor internet, firewall restrictions, or if the other person left.
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col gap-3 w-full">
+              <button
+                onClick={() => router.push('/main')}
+                className="w-full rounded-xl bg-[#ff9b6b] px-6 py-3 font-medium text-[#0a0a0c] 
+                         shadow-lg transition-all hover:opacity-90"
+              >
+                Return to Main
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full rounded-xl bg-white/10 px-6 py-3 font-medium text-white 
+                         transition-all hover:bg-white/20"
+              >
+                Try Again
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

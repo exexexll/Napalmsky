@@ -435,33 +435,51 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
       console.log('[Matchmake] Socket connecting, will auth after connect event');
     }
 
-    // Auto-check for new users every 15 seconds (reduced from 5s for better scalability)
-    // Real-time updates still happen via socket events (presence:update, queue:update)
-    const refreshInterval = setInterval(() => {
-      console.log('[Matchmake] Checking for new users...');
-      checkForNewUsers();
-    }, 15000); // 15 seconds instead of 5
-
-    // Listen for presence updates
+    // Real-time presence tracking - instant updates
     socket.on('presence:update', ({ userId, online, available }: any) => {
+      console.log('[Matchmake] Presence update:', { userId: userId.substring(0, 8), online, available });
+      
       if (!online || !available) {
-        // Remove user from reel if they go offline/unavailable
-        setUsers(prev => prev.filter(u => u.userId !== userId));
+        // User went offline or unavailable - remove immediately
+        setUsers(prev => {
+          const filtered = prev.filter(u => u.userId !== userId);
+          console.log('[Matchmake] Removed user from queue (offline/unavailable)');
+          return filtered;
+        });
+        
+        // Update total count
+        setTotalAvailable(prev => Math.max(0, prev - 1));
+      } else if (online && available) {
+        // User came online - refresh queue to add them
+        console.log('[Matchmake] User came online, refreshing queue...');
+        setTimeout(() => checkForNewUsers(), 300);
       }
     });
 
-    // Listen for queue updates
+    // Listen for queue-specific updates (busy/in-call status)
     socket.on('queue:update', ({ userId, available }: any) => {
+      console.log('[Matchmake] Queue update:', { userId: userId.substring(0, 8), available });
+      
       if (!available) {
-        // Remove user from reel if they become unavailable
-        console.log('[Matchmake] User became unavailable, removing:', userId);
-        setUsers(prev => prev.filter(u => u.userId !== userId));
+        // User became busy (in call) - remove immediately
+        setUsers(prev => {
+          const filtered = prev.filter(u => u.userId !== userId);
+          console.log('[Matchmake] Removed user (busy/in-call)');
+          return filtered;
+        });
+        setTotalAvailable(prev => Math.max(0, prev - 1));
       } else {
-        // User became available - check for new users (don't reorder)
-        console.log('[Matchmake] User became available, checking for additions:', userId);
-        setTimeout(() => checkForNewUsers(), 500); // Small delay to ensure server state is updated
+        // User became available (call ended) - add back
+        console.log('[Matchmake] User available again, refreshing...');
+        setTimeout(() => checkForNewUsers(), 300);
       }
     });
+
+    // Aggressive polling for status changes (5s for instant updates)
+    const refreshInterval = setInterval(() => {
+      console.log('[Matchmake] Polling for queue updates...');
+      checkForNewUsers();
+    }, 5000); // Fast polling for real-time feel
 
     // Listen for incoming invites
     socket.on('call:notify', (invite: any) => {

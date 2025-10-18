@@ -188,7 +188,7 @@ export default function ManifestoPage() {
 
         {/* Row 2 - Moving Right */}
         <div className="absolute top-[18%] left-0 whitespace-nowrap will-change-transform">
-          <motion.div
+        <motion.div
             className="flex gap-4"
             animate={{ x: [-2400, 0] }}
             transition={{
@@ -208,8 +208,8 @@ export default function ManifestoPage() {
                 {slang}
               </div>
             ))}
-          </motion.div>
-        </div>
+        </motion.div>
+      </div>
 
         {/* Row 3 - Moving Left */}
         <div className="absolute top-[31%] left-0 whitespace-nowrap will-change-transform">

@@ -36,10 +36,12 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
   const [cooldownTimeRemaining, setCooldownTimeRemaining] = useState('');
   const [isHovered, setIsHovered] = useState(true); // Start with full UI visible
   const [hasMounted, setHasMounted] = useState(false); // Track if component has mounted
+  const [isVideoPaused, setIsVideoPaused] = useState(false); // Track manual pause state
   const videoRef = useRef<HTMLVideoElement>(null);
   const waitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const autoMinimizeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapTime = useRef<number>(0);
   
   // Detect mobile Safari for compact UI
   const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -98,10 +100,10 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
     }
   }, [user.userId]);
 
-  // Auto-play/pause video based on active state
+  // Auto-play/pause video based on active state (respects manual pause)
   useEffect(() => {
     if (videoRef.current) {
-      if (isActive) {
+      if (isActive && !isVideoPaused) {
         // Unmute and play when card becomes active
         videoRef.current.muted = false;
         videoRef.current.volume = 1.0;
@@ -112,12 +114,40 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
           videoRef.current!.play().catch(() => {});
         });
       } else {
-        // Pause and mute when card becomes inactive for seamless transition
+        // Pause and mute when card becomes inactive or manually paused
         videoRef.current.pause();
         videoRef.current.muted = true;
       }
     }
-  }, [isActive]);
+  }, [isActive, isVideoPaused]);
+
+  // Handle double tap/click on video to pause/play
+  const handleVideoInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation(); // Don't trigger card navigation
+    
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapTime.current;
+    
+    // Double tap/click detection (within 300ms)
+    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+      if (videoRef.current) {
+        if (isVideoPaused || videoRef.current.paused) {
+          // Resume playback
+          videoRef.current.play();
+          setIsVideoPaused(false);
+          console.log('[UserCard] Video resumed by user');
+        } else {
+          // Pause playback
+          videoRef.current.pause();
+          setIsVideoPaused(true);
+          console.log('[UserCard] Video paused by user');
+        }
+      }
+      lastTapTime.current = 0; // Reset to prevent triple-tap issues
+    } else {
+      lastTapTime.current = now;
+    }
+  };
 
   // Wait timer countdown with safety timeout
   useEffect(() => {
@@ -374,13 +404,28 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
       {/* Full Height Video */}
       <div className="relative flex-1 bg-black">
         {user.videoUrl ? (
-          <video
-            ref={videoRef}
-            src={user.videoUrl}
-            loop
-            playsInline
-            className="h-full w-full object-cover"
-          />
+          <div 
+            className="relative h-full w-full cursor-pointer"
+            onClick={handleVideoInteraction}
+            onTouchEnd={handleVideoInteraction}
+          >
+            <video
+              ref={videoRef}
+              src={user.videoUrl}
+              loop
+              playsInline
+              className="h-full w-full object-contain"
+            />
+            {/* Pause indicator */}
+            {isVideoPaused && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                <svg className="h-16 w-16 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center bg-black/80">
             <p className="text-lg text-white/50">No intro video</p>

@@ -226,7 +226,12 @@ function OnboardingPageContent() {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { 
+          facingMode: 'user',
+          aspectRatio: { ideal: 1 }, // Square aspect ratio for better full-face capture
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 640, ideal: 1280, max: 1920 },
+        },
         audio: false,
       });
       setStream(mediaStream);
@@ -686,7 +691,7 @@ function OnboardingPageContent() {
                       autoPlay
                       playsInline
                       muted
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       style={{ transform: 'scaleX(-1)' }}
                     />
                   </div>
@@ -734,7 +739,7 @@ function OnboardingPageContent() {
                       autoPlay
                       playsInline
                       muted
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       style={{ transform: 'scaleX(-1)' }}
                     />
                     {isRecording && (
