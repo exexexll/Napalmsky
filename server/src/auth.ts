@@ -128,12 +128,18 @@ router.post('/guest', async (req: any, res) => {
     }),
   };
 
+  // Get device info
+  const deviceInfo = req.headers['user-agent'] || 'Unknown device';
+
   const session: Session = {
     sessionToken,
     userId,
     createdAt: Date.now(),
     expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days for guest
     ipAddress: ip,
+    deviceInfo,
+    isActive: true,
+    lastActiveAt: Date.now(),
   };
 
   await store.createUser(user);
@@ -274,6 +280,30 @@ router.post('/login', async (req: any, res) => {
     });
   }
 
+  // SECURITY: Invalidate all other active sessions (single-session enforcement)
+  const invalidatedCount = await store.invalidateUserSessions(user.userId);
+  console.log(`[Auth] Invalidated ${invalidatedCount} existing sessions for ${user.email}`);
+  
+  // Notify old sessions via Socket.IO (if they're connected)
+  if (invalidatedCount > 0) {
+    // Emit to all sockets for this user
+    const sockets = Array.from(activeSockets.entries())
+      .filter(([userId, _]) => userId === user.userId)
+      .map(([_, socketId]) => socketId);
+    
+    sockets.forEach(socketId => {
+      io.to(socketId).emit('session:invalidated', {
+        message: 'You have been logged out because you logged in from another device.',
+        reason: 'new_login',
+      });
+    });
+    
+    console.log(`[Auth] Notified ${sockets.length} active sockets of logout`);
+  }
+  
+  // Get device info from User-Agent
+  const deviceInfo = req.headers['user-agent'] || 'Unknown device';
+
   const sessionToken = uuidv4();
   const session: Session = {
     sessionToken,
@@ -281,6 +311,9 @@ router.post('/login', async (req: any, res) => {
     createdAt: Date.now(),
     expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days
     ipAddress: ip,
+    deviceInfo,
+    isActive: true,
+    lastActiveAt: Date.now(),
   };
 
   await store.createSession(session);
@@ -291,6 +324,8 @@ router.post('/login', async (req: any, res) => {
   res.json({
     userId: user.userId,
     sessionToken,
+    sessionInvalidated: invalidatedCount > 0,
+    invalidatedCount,
     accountType: user.accountType,
     user: {
       name: user.name,
