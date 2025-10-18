@@ -17,6 +17,16 @@ async function requireAuth(req: any, res: any, next: any) {
     return res.status(401).json({ error: 'Invalid or expired session' });
   }
 
+  // SECURITY: Check if session is still active (not invalidated by new login)
+  const isActive = await store.isSessionActive(token);
+  if (!isActive) {
+    return res.status(401).json({ 
+      error: 'Session invalidated',
+      message: 'You have been logged out. Please login again.',
+      sessionInvalidated: true
+    });
+  }
+
   req.userId = session.userId;
   next();
 }

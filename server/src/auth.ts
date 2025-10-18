@@ -284,8 +284,10 @@ router.post('/link', async (req, res) => {
   }
 
   // SECURITY: Invalidate all other active sessions (single-session enforcement)
+  // NOTE: We invalidate BEFORE creating new session, so no need for exceptToken
   const invalidatedCount = await store.invalidateUserSessions(user.userId);
-  console.log(`[Auth] Invalidated ${invalidatedCount} existing sessions for ${user.email}`);
+  console.log(`[Auth] Invalidating sessions for ${user.email}...`);
+  console.log(`[Auth] Invalidated ${invalidatedCount} existing sessions`);
   
   // Notify old sessions via Socket.IO (if they're connected)
   if (invalidatedCount > 0) {
