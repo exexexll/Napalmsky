@@ -29,12 +29,15 @@ CREATE TABLE users (
   introduced_by UUID REFERENCES users(user_id),
   
   -- Paywall
-  paid_status VARCHAR(20) DEFAULT 'unpaid' CHECK (paid_status IN ('unpaid', 'paid', 'qr_verified')),
+  paid_status VARCHAR(20) DEFAULT 'unpaid' CHECK (paid_status IN ('unpaid', 'paid', 'qr_verified', 'qr_grace_period')),
   paid_at TIMESTAMP,
   payment_id VARCHAR(255),
   invite_code_used VARCHAR(20),
   my_invite_code VARCHAR(20),
   invite_code_uses_remaining INTEGER DEFAULT 0,
+  qr_unlocked BOOLEAN DEFAULT FALSE, -- QR code unlocked after 4 sessions
+  successful_sessions INTEGER DEFAULT 0, -- Count of completed video calls
+  qr_unlocked_at TIMESTAMP, -- When QR was unlocked (for analytics)
   
   -- Ban System
   ban_status VARCHAR(20) DEFAULT 'none' CHECK (ban_status IN ('none', 'temporary', 'permanent', 'vindicated')),
@@ -59,15 +62,20 @@ CREATE TABLE sessions (
   session_token UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   ip_address INET,
+  device_info TEXT, -- Browser/device fingerprint for security
+  is_active BOOLEAN DEFAULT TRUE, -- For single-session enforcement
   created_at TIMESTAMP DEFAULT NOW(),
-  expires_at TIMESTAMP NOT NULL
+  expires_at TIMESTAMP NOT NULL,
+  last_active_at TIMESTAMP DEFAULT NOW() -- Track last activity
 );
 
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
+CREATE INDEX idx_sessions_is_active ON sessions(is_active) WHERE is_active = TRUE;
+CREATE INDEX idx_sessions_user_active ON sessions(user_id, is_active) WHERE is_active = TRUE;
 
 -- Auto-cleanup expired sessions (run daily)
--- DELETE FROM sessions WHERE expires_at < NOW();
+-- DELETE FROM sessions WHERE expires_at < NOW() OR (is_active = FALSE AND last_active_at < NOW() - INTERVAL '7 days');
 
 -- ===== CHAT HISTORY TABLE =====
 CREATE TABLE chat_history (
@@ -85,6 +93,26 @@ CREATE TABLE chat_history (
 CREATE INDEX idx_chat_history_user_id ON chat_history(user_id);
 CREATE INDEX idx_chat_history_partner_id ON chat_history(partner_id);
 CREATE INDEX idx_chat_history_started_at ON chat_history(started_at);
+
+-- ===== SESSION COMPLETIONS TABLE =====
+-- Tracks successful video call completions for QR grace period
+CREATE TABLE session_completions (
+  id SERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  partner_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  room_id UUID NOT NULL,
+  duration_seconds INTEGER NOT NULL CHECK (duration_seconds > 0),
+  completed_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Prevent duplicate entries for same call
+  CONSTRAINT unique_session_completion UNIQUE (user_id, room_id)
+);
+
+CREATE INDEX idx_completions_user_id ON session_completions(user_id);
+CREATE INDEX idx_completions_completed_at ON session_completions(completed_at);
+
+-- Auto-cleanup old completions (keep only last 90 days for analytics, user count persists)
+-- DELETE FROM session_completions WHERE completed_at < NOW() - INTERVAL '90 days';
 
 -- ===== COOLDOWNS TABLE =====
 CREATE TABLE cooldowns (
