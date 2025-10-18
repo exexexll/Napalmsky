@@ -1192,6 +1192,166 @@ class DataStore {
     this.rateLimits.delete(ipAddress);
     console.log(`[RateLimit] Cleared for IP: ${ipAddress}`);
   }
+
+  // ===== SESSION COMPLETIONS (QR Grace Period) =====
+  
+  /**
+   * Track a successful session completion
+   * Increments user's count and unlocks QR after 4 completions
+   */
+  async trackSessionCompletion(userId: string, partnerId: string, roomId: string, durationSeconds: number): Promise<void> {
+    console.log(`[Store] Tracking session completion for user ${userId.substring(0, 8)}, duration: ${durationSeconds}s`);
+    
+    // Only count if duration > 30 seconds (prevent gaming)
+    if (durationSeconds < 30) {
+      console.log('[Store] Session too short (<30s), not counting for QR unlock');
+      return;
+    }
+    
+    if (this.useDatabase) {
+      try {
+        // Insert completion record (UNIQUE constraint prevents duplicates)
+        await query(
+          `INSERT INTO session_completions (user_id, partner_id, room_id, duration_seconds)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (user_id, room_id) DO NOTHING`,
+          [userId, partnerId, roomId, durationSeconds]
+        );
+        
+        // Get user's total successful sessions
+        const countResult = await query(
+          `SELECT COUNT(*) as count FROM session_completions WHERE user_id = $1`,
+          [userId]
+        );
+        
+        const totalSessions = parseInt(countResult.rows[0]?.count || '0');
+        console.log(`[Store] User ${userId.substring(0, 8)} now has ${totalSessions} successful sessions`);
+        
+        // Update user's successful_sessions count
+        await query(
+          `UPDATE users SET successful_sessions = $1 WHERE user_id = $2`,
+          [totalSessions, userId]
+        );
+        
+        // Check if should unlock QR (4+ sessions and not already unlocked)
+        if (totalSessions >= 4) {
+          const userResult = await query(
+            `SELECT qr_unlocked FROM users WHERE user_id = $1`,
+            [userId]
+          );
+          
+          if (userResult.rows[0] && !userResult.rows[0].qr_unlocked) {
+            await query(
+              `UPDATE users SET qr_unlocked = TRUE, qr_unlocked_at = NOW(), paid_status = 'qr_verified'
+               WHERE user_id = $1`,
+              [userId]
+            );
+            
+            console.log(`[Store] 🎉 QR code unlocked for user ${userId.substring(0, 8)} after ${totalSessions} sessions!`);
+            
+            // Update in-memory cache
+            const user = await this.getUser(userId);
+            if (user) {
+              user.qrUnlocked = true;
+              user.successfulSessions = totalSessions;
+              user.qrUnlockedAt = Date.now();
+              if (user.paidStatus === 'qr_grace_period') {
+                user.paidStatus = 'qr_verified';
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Store] Failed to track session completion:', error);
+      }
+    } else {
+      // Memory-only mode
+      const user = await this.getUser(userId);
+      if (user) {
+        user.successfulSessions = (user.successfulSessions || 0) + 1;
+        
+        if (user.successfulSessions >= 4 && !user.qrUnlocked) {
+          user.qrUnlocked = true;
+          user.qrUnlockedAt = Date.now();
+          if (user.paidStatus === 'qr_grace_period') {
+            user.paidStatus = 'qr_verified';
+          }
+          console.log(`[Store] 🎉 QR code unlocked for user ${userId.substring(0, 8)}!`);
+        }
+      }
+    }
+  }
+  
+  /**
+   * Get user's QR unlock status
+   */
+  async getQrUnlockStatus(userId: string): Promise<{ unlocked: boolean; sessionsCompleted: number; sessionsNeeded: number }> {
+    const user = await this.getUser(userId);
+    
+    return {
+      unlocked: user?.qrUnlocked || false,
+      sessionsCompleted: user?.successfulSessions || 0,
+      sessionsNeeded: 4,
+    };
+  }
+
+  // ===== SINGLE SESSION ENFORCEMENT =====
+  
+  /**
+   * Invalidate all active sessions for a user (except optionally one)
+   * Used when user logs in from new device
+   */
+  async invalidateUserSessions(userId: string, exceptToken?: string): Promise<number> {
+    console.log(`[Store] Invalidating all sessions for user ${userId.substring(0, 8)} except ${exceptToken?.substring(0, 8) || 'none'}`);
+    
+    let invalidatedCount = 0;
+    
+    if (this.useDatabase) {
+      try {
+        const result = await query(
+          `UPDATE sessions 
+           SET is_active = FALSE, last_active_at = NOW()
+           WHERE user_id = $1 AND is_active = TRUE AND session_token != $2
+           RETURNING session_token`,
+          [userId, exceptToken || '']
+        );
+        
+        invalidatedCount = result.rows.length;
+        
+        // Also clear from memory cache
+        result.rows.forEach((row: any) => {
+          this.sessions.delete(row.session_token);
+          sessionCache.delete(row.session_token);
+        });
+        
+        console.log(`[Store] Invalidated ${invalidatedCount} active sessions in database`);
+      } catch (error) {
+        console.error('[Store] Failed to invalidate sessions:', error);
+      }
+    } else {
+      // Memory-only mode
+      for (const [token, session] of this.sessions.entries()) {
+        if (session.userId === userId && token !== exceptToken) {
+          session.isActive = false;
+          session.lastActiveAt = Date.now();
+          invalidatedCount++;
+        }
+      }
+    }
+    
+    return invalidatedCount;
+  }
+
+  /**
+   * Check if a session is still active (not invalidated by new login)
+   */
+  async isSessionActive(sessionToken: string): Promise<boolean> {
+    const session = await this.getSession(sessionToken);
+    if (!session) return false;
+    
+    // Default to true if isActive not set (backward compatibility)
+    return session.isActive !== false;
+  }
 }
 
 export const store = new DataStore();
