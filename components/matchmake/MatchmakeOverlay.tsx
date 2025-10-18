@@ -52,37 +52,38 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     }
   }, []);
 
+  // Show toast
+  const showToast = useCallback((message: string, type: 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
   // Track navigation rate and apply cooldown if needed
   const trackNavigation = useCallback((userId: string) => {
     const now = Date.now();
     
-    // Add userId to viewed set (use Array.from for TS compatibility)
+    // Add userId to viewed set
     setViewedUserIds(prev => {
       const newSet = new Set(prev);
       newSet.add(userId);
       return newSet;
     });
     
-    // Get timestamps from sessionStorage (persistent across overlay close/open)
+    // Get timestamps from sessionStorage
     const stored = sessionStorage.getItem('napalmsky_nav_timestamps');
     let timestamps: number[] = stored ? JSON.parse(stored) : [];
-    
-    // Add current navigation
     timestamps.push(now);
     
-    // Keep only last 30 seconds (prevent infinite growth)
+    // Keep only last 30 seconds
     const thirtySecondsAgo = now - 30000;
     timestamps = timestamps.filter(ts => ts > thirtySecondsAgo);
-    
-    // Save back to sessionStorage
     sessionStorage.setItem('napalmsky_nav_timestamps', JSON.stringify(timestamps));
     
     // Check if 10+ NEW card views in 30 seconds
-    if (timestamps.length >= 10 && !isRateLimited) {
-      const cooldownEnd = now + 180000; // 3 minutes
+    if (timestamps.length >= 10) {
+      const cooldownEnd = now + 180000;
       setIsRateLimited(true);
       
-      // Save rate limit to sessionStorage (survives overlay close/open)
       sessionStorage.setItem('napalmsky_rate_limit', JSON.stringify({
         expiry: cooldownEnd,
         viewedIds: Array.from(viewedUserIds),
@@ -90,7 +91,6 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
       
       showToast('Slow down! 3-minute cooldown. You can still review seen cards.', 'error');
       
-      // Auto-remove after 3 minutes
       setTimeout(() => {
         setIsRateLimited(false);
         sessionStorage.removeItem('napalmsky_rate_limit');
@@ -98,7 +98,7 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
         showToast('Cooldown ended! Explore new cards again.', 'info');
       }, 180000);
     }
-  }, [isRateLimited, viewedUserIds]);
+  }, [viewedUserIds, showToast]);
 
   // Check if rate limit expired (on mount and interval)
   useEffect(() => {
@@ -282,13 +282,6 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
       setLoading(false);
     }
   }, [loading, directMatchTarget]);
-
-  // Show toast
-  const showToast = (message: string, type: 'error' | 'info' = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
 
   // Check for new users and update existing user data (cooldown, intro status)
   const checkForNewUsers = useCallback(async () => {
