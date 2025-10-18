@@ -281,7 +281,7 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     } finally {
       setLoading(false);
     }
-  }, [loading, directMatchTarget]);
+  }, [loading, directMatchTarget, showToast]);
 
   // Check for new users and update existing user data (cooldown, intro status)
   const checkForNewUsers = useCallback(async () => {
