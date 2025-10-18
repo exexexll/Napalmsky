@@ -11,42 +11,54 @@ export function SessionInvalidatedModal() {
   const router = useRouter();
 
   useEffect(() => {
-    // Get session to connect socket
-    const sessionData = localStorage.getItem('napalmsky_session');
-    if (!sessionData) return;
+    // Listen for BOTH socket events AND custom window events (from API 401 responses)
     
-    try {
-      const { sessionToken } = JSON.parse(sessionData);
-      if (!sessionToken) return;
-      
-      // Connect socket with session token
-      const { connectSocket } = require('@/lib/socket');
-      const socket = connectSocket(sessionToken);
-      
-      if (!socket) return;
-
-      const handleSessionInvalidated = ({ message, reason }: { message: string; reason: string }) => {
-        console.log('[SessionInvalidated] Received logout notification:', reason);
-        setMessage(message);
-        setShow(true);
-        
-        // Clear local session
-        localStorage.removeItem('napalmsky_session');
-        
-        // Auto-redirect after 5 seconds
-        setTimeout(() => {
-          router.push('/login');
-        }, 5000);
-      };
-
-      socket.on('session:invalidated', handleSessionInvalidated);
-
-      return () => {
-        socket.off('session:invalidated', handleSessionInvalidated);
-      };
-    } catch (error) {
-      console.error('[SessionInvalidated] Failed to setup listener:', error);
+    // Method 1: Socket events (real-time, if connected)
+    const sessionData = localStorage.getItem('napalmsky_session');
+    let socket: any = null;
+    
+    if (sessionData) {
+      try {
+        const { sessionToken } = JSON.parse(sessionData);
+        if (sessionToken) {
+          const { connectSocket } = require('@/lib/socket');
+          socket = connectSocket(sessionToken);
+          
+          if (socket) {
+            const handleSessionInvalidated = ({ message, reason }: { message: string; reason: string }) => {
+              console.log('[SessionInvalidated] Socket event received:', reason);
+              setMessage(message);
+              setShow(true);
+              localStorage.removeItem('napalmsky_session');
+              setTimeout(() => router.push('/login'), 5000);
+            };
+            
+            socket.on('session:invalidated', handleSessionInvalidated);
+          }
+        }
+      } catch (error) {
+        console.error('[SessionInvalidated] Socket setup failed:', error);
+      }
     }
+    
+    // Method 2: Window events (from API 401 responses, if socket not connected)
+    const handleWindowEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      console.log('[SessionInvalidated] Window event received:', customEvent.detail);
+      setMessage(customEvent.detail.message);
+      setShow(true);
+      localStorage.removeItem('napalmsky_session');
+      setTimeout(() => router.push('/login'), 5000);
+    };
+    
+    window.addEventListener('session-invalidated', handleWindowEvent);
+
+    return () => {
+      if (socket) {
+        socket.off('session:invalidated');
+      }
+      window.removeEventListener('session-invalidated', handleWindowEvent);
+    };
   }, [router]);
 
   const handleOk = () => {
