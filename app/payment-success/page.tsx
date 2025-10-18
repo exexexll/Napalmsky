@@ -46,7 +46,7 @@ function PaymentSuccessPageContent() {
       })
         .then(res => res.json())
         .then(data => {
-          if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
+          if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified' || data.paidStatus === 'qr_grace_period') {
             setMyInviteCode(data.myInviteCode || '');
             const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'https://napalmsky-production.up.railway.app';
             setQrCodeUrl(`${apiBase}/payment/qr/${data.myInviteCode}`);

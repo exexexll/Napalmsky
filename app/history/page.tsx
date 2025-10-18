@@ -41,7 +41,7 @@ export default function HistoryPage() {
       .then(res => res.json())
       .then(paymentData => {
         // Allow BOTH paid users AND qr_verified users (invite code, referral, QR scan)
-        const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified';
+        const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified' || paymentData.paidStatus === 'qr_grace_period';
         
         if (!hasPaid) {
           console.warn('[History] Unpaid user attempted access - redirecting to paywall');

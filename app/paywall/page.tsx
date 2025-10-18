@@ -32,8 +32,8 @@ function PaywallPageContent() {
     })
       .then(res => res.json())
       .then(data => {
-        if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified') {
-          // Already paid/verified - redirect to main immediately
+        if (data.paidStatus === 'paid' || data.paidStatus === 'qr_verified' || data.paidStatus === 'qr_grace_period') {
+          // Already paid/verified/grace period - redirect to main immediately
           console.log('[Paywall] User already verified - redirecting to main');
           router.replace('/main'); // Use replace to prevent back button issues
         } else {

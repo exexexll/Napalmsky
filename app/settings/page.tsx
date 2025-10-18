@@ -172,7 +172,7 @@ export default function SettingsPage() {
           )}
 
           {/* My Invite Code (if paid) - Clean & Minimal */}
-          {!loadingPayment && paymentStatus && (paymentStatus.paidStatus === 'paid' || paymentStatus.paidStatus === 'qr_verified') && paymentStatus.myInviteCode && (
+          {!loadingPayment && paymentStatus && (paymentStatus.paidStatus === 'paid' || paymentStatus.paidStatus === 'qr_verified' || paymentStatus.paidStatus === 'qr_grace_period') && paymentStatus.myInviteCode && (
             <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-bold text-purple-300">Friend Invites</h2>

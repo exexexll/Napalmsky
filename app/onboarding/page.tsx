@@ -110,8 +110,8 @@ function OnboardingPageContent() {
           // Check if profile is complete (has selfie AND video)
           const hasCompletedProfile = data.selfieUrl && data.videoUrl;
           
-          // Check payment status
-          const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
+          // Check payment status (includes grace period users)
+          const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified' || data.paidStatus === 'qr_grace_period';
           
           if (hasCompletedProfile && hasPaid) {
             // Profile complete AND paid - redirect to main

@@ -225,7 +225,7 @@ router.post('/apply-code', requireAuth, async (req: any, res) => {
   }
 
   // Check if already verified
-  if (user.paidStatus === 'paid' || user.paidStatus === 'qr_verified') {
+  if (user.paidStatus === 'paid' || user.paidStatus === 'qr_verified' || user.paidStatus === 'qr_grace_period') {
     return res.status(400).json({ error: 'You already have access' });
   }
 
@@ -236,15 +236,22 @@ router.post('/apply-code', requireAuth, async (req: any, res) => {
     return res.status(403).json({ error: result.error });
   }
 
-  // Mark user as verified
+  // Mark user in grace period (need 4 sessions to unlock QR)
   await store.updateUser(req.userId, {
-    paidStatus: 'qr_verified',
+    paidStatus: 'qr_grace_period',
     inviteCodeUsed: inviteCode,
+    qrUnlocked: false,
+    successfulSessions: 0,
   });
 
-  console.log(`[Payment] User ${user.name} verified via code: ${inviteCode}`);
+  console.log(`[Payment] User ${user.name} entered grace period via code: ${inviteCode}`);
 
-  res.json({ success: true, paidStatus: 'qr_verified' });
+  res.json({ 
+    success: true, 
+    paidStatus: 'qr_grace_period',
+    qrUnlocked: false,
+    sessionsNeeded: 4,
+  });
 });
 
 /**

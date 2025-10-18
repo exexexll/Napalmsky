@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { AuthGuard } from '@/components/AuthGuard';
 import { LegalFooter } from '@/components/LegalFooter';
 import { CookieConsent } from '@/components/CookieConsent';
+import { SessionInvalidatedModal } from '@/components/SessionInvalidatedModal';
 
 const playfair = Playfair_Display({
   weight: '700',
@@ -88,6 +89,7 @@ export default function RootLayout({
         </AuthGuard>
         <LegalFooter />
         <CookieConsent />
+        <SessionInvalidatedModal />
       </body>
     </html>
   );

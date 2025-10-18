@@ -47,7 +47,7 @@ export default function RefilmPage() {
     })
       .then(res => res.json())
       .then(paymentData => {
-        const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified';
+        const hasPaid = paymentData.paidStatus === 'paid' || paymentData.paidStatus === 'qr_verified' || paymentData.paidStatus === 'qr_grace_period';
         
         if (!hasPaid) {
           console.warn('[Refilm] Unpaid user attempted access - redirecting to paywall');

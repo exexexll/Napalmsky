@@ -33,7 +33,7 @@ function MainPageContent() {
     })
       .then(res => res.json())
       .then(data => {
-        const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified';
+        const hasPaid = data.paidStatus === 'paid' || data.paidStatus === 'qr_verified' || data.paidStatus === 'qr_grace_period';
         
         if (!hasPaid) {
           console.warn('[Main] Unpaid user attempted access - redirecting to paywall');

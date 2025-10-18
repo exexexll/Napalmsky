@@ -114,12 +114,15 @@ router.post('/guest', async (req: any, res) => {
     accountType: 'guest',
     createdAt: Date.now(),
     banStatus: 'none',
-    // Paywall status
-    paidStatus: codeVerified ? 'qr_verified' : 'unpaid',
+    // PAYWALL GRACE PERIOD: Users with invite code start in grace period
+    // They get full access but need 4 successful sessions to unlock their own QR code
+    paidStatus: codeVerified ? 'qr_grace_period' : 'unpaid',
     inviteCodeUsed: codeUsed,
     // New user's own invite code (if they were verified)
     myInviteCode: newUserInviteCode,
     inviteCodeUsesRemaining: newUserInviteCode ? 4 : 0,
+    qrUnlocked: false, // Starts locked, unlocks after 4 sessions
+    successfulSessions: 0, // Starts at 0
     // Store introduction info if this is via referral
     ...(referralInfo && {
       introducedTo: referralInfo.targetUserId,

@@ -23,7 +23,10 @@ export async function requirePayment(req: any, res: any, next: any) {
   }
 
   // Check if user has verified access
-  const hasAccess = user.paidStatus === 'paid' || user.paidStatus === 'qr_verified';
+  // Grace period users ('qr_grace_period') also have full access
+  const hasAccess = user.paidStatus === 'paid' || 
+                     user.paidStatus === 'qr_verified' || 
+                     user.paidStatus === 'qr_grace_period';
   
   if (!hasAccess) {
     console.warn(`[Paywall] 🚫 Unpaid user ${user.name} attempted to access protected route`);
