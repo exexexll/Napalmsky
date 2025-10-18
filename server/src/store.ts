@@ -1360,13 +1360,22 @@ class DataStore {
     
     if (this.useDatabase) {
       try {
-        const result = await query(
-          `UPDATE sessions 
-           SET is_active = FALSE, last_active_at = NOW()
-           WHERE user_id = $1 AND is_active = TRUE AND session_token != $2
-           RETURNING session_token`,
-          [userId, exceptToken || '']
-        );
+        // Use different query depending on whether exceptToken is provided
+        const result = exceptToken
+          ? await query(
+              `UPDATE sessions 
+               SET is_active = FALSE, last_active_at = NOW()
+               WHERE user_id = $1 AND is_active = TRUE AND session_token != $2
+               RETURNING session_token`,
+              [userId, exceptToken]
+            )
+          : await query(
+              `UPDATE sessions 
+               SET is_active = FALSE, last_active_at = NOW()
+               WHERE user_id = $1 AND is_active = TRUE
+               RETURNING session_token`,
+              [userId]
+            );
         
         invalidatedCount = result.rows.length;
         
