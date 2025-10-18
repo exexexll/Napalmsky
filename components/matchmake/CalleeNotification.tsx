@@ -104,8 +104,8 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`w-full max-w-lg space-y-6 rounded-2xl bg-[#0a0a0c] shadow-2xl border-2 border-[#ff9b6b]/30 ${
-          isMobile ? 'p-4' : 'p-8'
+        className={`w-full max-w-lg rounded-2xl bg-[#0a0a0c] shadow-2xl border-2 border-[#ff9b6b]/30 ${
+          isMobile ? 'space-y-3 p-4 max-h-[90vh] overflow-y-auto' : 'space-y-6 p-8'
         }`}
         role="alertdialog"
         aria-labelledby="callee-title"
@@ -133,10 +133,12 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
         </div>
 
         {/* Caller Info */}
-        <div className="space-y-4">
+        <div className={isMobile ? 'space-y-2' : 'space-y-4'}>
           {/* Selfie */}
           {invite.fromUser.selfieUrl && (
-            <div className="relative mx-auto h-32 w-32 overflow-hidden rounded-full border-4 border-[#ff9b6b]/30">
+            <div className={`relative mx-auto overflow-hidden rounded-full border-4 border-[#ff9b6b]/30 ${
+              isMobile ? 'h-24 w-24' : 'h-32 w-32'
+            }`}>
               <Image
                 src={invite.fromUser.selfieUrl}
                 alt={invite.fromUser.name}
@@ -148,7 +150,9 @@ export function CalleeNotification({ invite, onAccept, onDecline }: CalleeNotifi
 
           {/* Intro Video Preview */}
           {invite.fromUser.videoUrl && (
-            <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
+            <div className={`relative overflow-hidden rounded-xl bg-black ${
+              isMobile ? 'aspect-video max-h-40' : 'aspect-video'
+            }`}>
               <video
                 ref={videoRef}
                 src={invite.fromUser.videoUrl}

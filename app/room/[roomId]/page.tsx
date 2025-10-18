@@ -30,6 +30,32 @@ export default function RoomPage() {
   const peerName = searchParams.get('peerName') || 'Partner';
   const isInitiator = searchParams.get('initiator') === 'true';
 
+  // Prevent mobile viewport juggling
+  useEffect(() => {
+    // Lock viewport height to prevent address bar show/hide from causing layout shifts
+    const setViewportHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    
+    // Prevent body scroll
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+    
+    return () => {
+      window.removeEventListener('resize', setViewportHeight);
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    };
+  }, []);
+
   console.log('[Room] URL Params:', {
     roomId,
     duration: searchParams.get('duration'),

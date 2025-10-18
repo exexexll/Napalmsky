@@ -860,15 +860,15 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     <>
       {/* Transparent Overlay - Only Card Visible */}
       <div 
-        className="fixed inset-0 z-50 flex flex-col cursor-none"
+        className="fixed inset-0 z-50 flex flex-col md:cursor-none"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onClick={handleCardClick}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Custom Cursor - Arrow that follows mouse */}
-        {showCursor && (
+        {/* Custom Cursor - Desktop only (mobile uses swipe) */}
+        {showCursor && typeof window !== 'undefined' && !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) && (
           <div
             className="fixed pointer-events-none z-[60] transition-opacity duration-200"
             style={{
