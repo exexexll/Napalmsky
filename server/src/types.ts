@@ -35,12 +35,15 @@ export interface User {
   bannedReason?: string;
   reviewStatus?: ReviewStatus;
   // Paywall system
-  paidStatus?: 'unpaid' | 'paid' | 'qr_verified';
+  paidStatus?: 'unpaid' | 'paid' | 'qr_verified' | 'qr_grace_period';
   paidAt?: number;
   paymentId?: string; // Stripe payment intent ID
   inviteCodeUsed?: string; // QR/invite code used for free access
   myInviteCode?: string; // User's own invite code (5 uses)
   inviteCodeUsesRemaining?: number; // How many uses left on their code
+  qrUnlocked?: boolean; // QR code unlocked after 4 sessions
+  successfulSessions?: number; // Count of completed video calls
+  qrUnlockedAt?: number; // When QR was unlocked
 }
 
 export interface Report {
@@ -96,6 +99,18 @@ export interface Session {
   createdAt: number;
   expiresAt: number;
   ipAddress?: string;
+  deviceInfo?: string; // Browser/device fingerprint
+  isActive?: boolean; // For single-session enforcement
+  lastActiveAt?: number; // Track last activity
+}
+
+export interface SessionCompletion {
+  id?: number;
+  userId: string;
+  partnerId: string;
+  roomId: string;
+  durationSeconds: number;
+  completedAt: number;
 }
 
 export interface InviteCode {
