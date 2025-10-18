@@ -171,8 +171,32 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* My Invite Code (if paid) - Clean & Minimal */}
-          {!loadingPayment && paymentStatus && (paymentStatus.paidStatus === 'paid' || paymentStatus.paidStatus === 'qr_verified' || paymentStatus.paidStatus === 'qr_grace_period') && paymentStatus.myInviteCode && (
+          {/* QR Grace Period Progress (if in grace period and not unlocked) */}
+          {!loadingPayment && paymentStatus && paymentStatus.paidStatus === 'qr_grace_period' && !paymentStatus.qrUnlocked && (
+            <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-orange-300">🔒 QR Code Locked</h2>
+                  <span className="text-sm text-orange-300/70">
+                    {paymentStatus.successfulSessions || 0} / 4 sessions
+                  </span>
+                </div>
+                <p className="text-sm text-orange-200/80">
+                  Complete {4 - (paymentStatus.successfulSessions || 0)} more video calls (30s+) to unlock your QR code and invite friends!
+                </p>
+                {/* Progress bar */}
+                <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-orange-500 to-orange-400 transition-all duration-500"
+                    style={{ width: `${((paymentStatus.successfulSessions || 0) / 4) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* My Invite Code (if QR unlocked) - Clean & Minimal */}
+          {!loadingPayment && paymentStatus && (paymentStatus.paidStatus === 'paid' || (paymentStatus.paidStatus === 'qr_verified' && paymentStatus.qrUnlocked) || (paymentStatus.paidStatus === 'qr_grace_period' && paymentStatus.qrUnlocked)) && paymentStatus.myInviteCode && (
             <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-bold text-purple-300">Friend Invites</h2>
