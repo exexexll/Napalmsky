@@ -27,9 +27,77 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'info' } | null>(null);
   const [totalAvailable, setTotalAvailable] = useState(0); // Total available count (before reported user filter)
   const [autoInviteSent, setAutoInviteSent] = useState(false);
-  const [isHovered, setIsHovered] = useState(true); // Track hover state for navigation arrows
+  const [mouseY, setMouseY] = useState(0);
+  const [mouseX, setMouseX] = useState(0);
+  const [showCursor, setShowCursor] = useState(false);
+  const touchStartY = useRef<number>(0);
+  const touchStartX = useRef<number>(0);
   
   const socketRef = useRef<any>(null);
+
+  // Track mouse position for cursor-synced arrow
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setMouseX(e.clientX);
+    setMouseY(e.clientY);
+    setShowCursor(true);
+  };
+
+  // Hide custom cursor when mouse leaves
+  const handleMouseLeave = () => {
+    setShowCursor(false);
+  };
+
+  // Handle click - navigate based on cursor position
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on buttons or interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input') || target.closest('a')) {
+      return;
+    }
+
+    // Check if waiting
+    const currentUserId = users[currentIndex]?.userId;
+    const isWaiting = currentUserId && inviteStatuses[currentUserId] === 'waiting';
+    if (isWaiting) return;
+
+    const screenHeight = window.innerHeight;
+    const isTopHalf = mouseY < screenHeight / 2;
+
+    if (isTopHalf && currentIndex > 0) {
+      goToPrevious();
+    } else if (!isTopHalf && (currentIndex < users.length - 1 || hasMore)) {
+      goToNext();
+    }
+  };
+
+  // Swipe detection for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaY = touchStartY.current - touchEndY;
+    const deltaX = Math.abs(touchStartX.current - touchEndX);
+    
+    // Only trigger if vertical swipe (not horizontal) and significant distance
+    if (deltaX < 50 && Math.abs(deltaY) > 80) {
+      // Check if waiting
+      const currentUserId = users[currentIndex]?.userId;
+      const isWaiting = currentUserId && inviteStatuses[currentUserId] === 'waiting';
+      if (isWaiting) return;
+      
+      if (deltaY > 0) {
+        // Swiped up - go to next
+        goToNext();
+      } else {
+        // Swiped down - go to previous
+        goToPrevious();
+      }
+    }
+  };
 
   // Prevent body scroll when matchmaking is open
   useEffect(() => {
@@ -680,10 +748,53 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     <>
       {/* Transparent Overlay - Only Card Visible */}
       <div 
-        className="fixed inset-0 z-50 flex flex-col"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        className="fixed inset-0 z-50 flex flex-col cursor-none"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleCardClick}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
+        {/* Custom Cursor - Arrow that follows mouse */}
+        {showCursor && (
+          <div
+            className="fixed pointer-events-none z-[60] transition-opacity duration-200"
+            style={{
+              left: `${mouseX}px`,
+              top: `${mouseY}px`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            {mouseY < window.innerHeight / 2 ? (
+              // Top half - Up arrow
+              currentIndex > 0 && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && (
+                <svg 
+                  className="h-10 w-10 text-white/70 drop-shadow-lg" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor" 
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+              )
+            ) : (
+              // Bottom half - Down arrow
+              (currentIndex < users.length - 1 || hasMore) && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && (
+                <svg 
+                  className="h-10 w-10 text-white/70 drop-shadow-lg" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor" 
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              )
+            )}
+          </div>
+        )}
+
         {/* Compact Header - Top Right */}
         <div className="absolute top-6 right-6 flex items-center gap-4 z-20">
           <div className="text-right">
@@ -753,42 +864,7 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
                   </AnimatePresence>
                 </div>
 
-                {/* Navigation Arrows - Vertical (Fade with hover, hidden when waiting) */}
-                <AnimatePresence>
-                  {currentIndex > 0 && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && isHovered && (
-                    <motion.button
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                      onClick={goToPrevious}
-                      className="focus-ring absolute left-1/2 top-32 -translate-x-1/2 z-20 rounded-full bg-black/70 p-4 backdrop-blur-md transition-all hover:bg-black/90 shadow-lg"
-                      aria-label="Previous user"
-                    >
-                      <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-                      </svg>
-                    </motion.button>
-                  )}
-                </AnimatePresence>
-
-                <AnimatePresence>
-                  {(currentIndex < users.length - 1 || hasMore) && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && isHovered && (
-                    <motion.button
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      transition={{ duration: 0.2 }}
-                      onClick={goToNext}
-                      className="focus-ring absolute left-1/2 bottom-72 -translate-x-1/2 z-20 rounded-full bg-black/70 p-4 backdrop-blur-md transition-all hover:bg-black/90 shadow-lg"
-                      aria-label="Next user"
-                    >
-                      <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </motion.button>
-                  )}
-                </AnimatePresence>
+                {/* Navigation removed - use swipe on mobile, arrow keys on desktop */}
 
                 {/* Progress Indicator - Right Side */}
                 <div className="absolute right-8 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-2">

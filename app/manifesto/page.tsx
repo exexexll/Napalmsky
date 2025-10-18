@@ -162,7 +162,7 @@ export default function ManifestoPage() {
       <div className="absolute inset-0 z-0 overflow-hidden opacity-8">
         {/* Mobile: Only 4 rows for performance. Desktop: 8 rows */}
         {/* Row 1 - Top - Moving Left */}
-        <div className="absolute top-[5%] left-0 whitespace-nowrap">
+        <div className="absolute top-[5%] left-0 whitespace-nowrap will-change-transform">
           <motion.div
             className="flex gap-4"
             animate={{ x: [0, -2400] }}
@@ -171,12 +171,14 @@ export default function ManifestoPage() {
               repeat: Infinity,
               ease: "linear",
             }}
+            style={{ willChange: 'transform' }}
           >
             {slangRow.map((slang, i) => (
               <div
                 key={`row1-${i}`}
                 className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                            font-mono text-lg font-bold text-white/30"
+                style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
               >
                 {slang}
               </div>
@@ -185,7 +187,7 @@ export default function ManifestoPage() {
         </div>
 
         {/* Row 2 - Moving Right */}
-        <div className="absolute top-[18%] left-0 whitespace-nowrap">
+        <div className="absolute top-[18%] left-0 whitespace-nowrap will-change-transform">
           <motion.div
             className="flex gap-4"
             animate={{ x: [-2400, 0] }}
@@ -194,12 +196,14 @@ export default function ManifestoPage() {
               repeat: Infinity,
               ease: "linear",
             }}
+            style={{ willChange: 'transform' }}
           >
             {slangRow.map((slang, i) => (
               <div
                 key={`row2-${i}`}
                 className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                            font-mono text-lg font-bold text-white/30"
+                style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
               >
                 {slang}
               </div>
@@ -208,7 +212,7 @@ export default function ManifestoPage() {
         </div>
 
         {/* Row 3 - Moving Left */}
-        <div className="absolute top-[31%] left-0 whitespace-nowrap">
+        <div className="absolute top-[31%] left-0 whitespace-nowrap will-change-transform">
           <motion.div
             className="flex gap-4"
             animate={{ x: [0, -2400] }}
@@ -217,12 +221,14 @@ export default function ManifestoPage() {
               repeat: Infinity,
               ease: "linear",
             }}
+            style={{ willChange: 'transform' }}
           >
             {slangRow.map((slang, i) => (
               <div
                 key={`row3-${i}`}
                 className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                            font-mono text-lg font-bold text-white/30"
+                style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
               >
                 {slang}
               </div>
@@ -231,7 +237,7 @@ export default function ManifestoPage() {
         </div>
 
         {/* Row 4 - Moving Right */}
-        <div className="absolute top-[44%] left-0 whitespace-nowrap">
+        <div className="absolute top-[44%] left-0 whitespace-nowrap will-change-transform">
           <motion.div
             className="flex gap-4"
             animate={{ x: [-2400, 0] }}
@@ -240,12 +246,14 @@ export default function ManifestoPage() {
               repeat: Infinity,
               ease: "linear",
             }}
+            style={{ willChange: 'transform' }}
           >
             {slangRow.map((slang, i) => (
               <div
                 key={`row4-${i}`}
                 className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                            font-mono text-lg font-bold text-white/30"
+                style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
               >
                 {slang}
               </div>
@@ -257,7 +265,7 @@ export default function ManifestoPage() {
         {!isMobile && (
           <>
             {/* Row 5 - Moving Left */}
-            <div className="absolute top-[57%] left-0 whitespace-nowrap">
+            <div className="absolute top-[57%] left-0 whitespace-nowrap will-change-transform">
               <motion.div
                 className="flex gap-4"
                 animate={{ x: [0, -2400] }}
@@ -266,12 +274,14 @@ export default function ManifestoPage() {
                   repeat: Infinity,
                   ease: "linear",
                 }}
+                style={{ willChange: 'transform' }}
               >
                 {slangRow.map((slang, i) => (
                   <div
                     key={`row5-${i}`}
                     className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                                font-mono text-lg font-bold text-white/30"
+                    style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
                   >
                     {slang}
                   </div>
@@ -280,7 +290,7 @@ export default function ManifestoPage() {
             </div>
 
             {/* Row 6 - Moving Right */}
-            <div className="absolute top-[70%] left-0 whitespace-nowrap">
+            <div className="absolute top-[70%] left-0 whitespace-nowrap will-change-transform">
               <motion.div
                 className="flex gap-4"
                 animate={{ x: [-2400, 0] }}
@@ -289,12 +299,14 @@ export default function ManifestoPage() {
                   repeat: Infinity,
                   ease: "linear",
                 }}
+                style={{ willChange: 'transform' }}
               >
                 {slangRow.map((slang, i) => (
                   <div
                     key={`row6-${i}`}
                     className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                                font-mono text-lg font-bold text-white/30"
+                    style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
                   >
                     {slang}
                   </div>
@@ -303,7 +315,7 @@ export default function ManifestoPage() {
             </div>
 
             {/* Row 7 - Moving Left */}
-            <div className="absolute top-[83%] left-0 whitespace-nowrap">
+            <div className="absolute top-[83%] left-0 whitespace-nowrap will-change-transform">
               <motion.div
                 className="flex gap-4"
                 animate={{ x: [0, -2400] }}
@@ -312,12 +324,14 @@ export default function ManifestoPage() {
                   repeat: Infinity,
                   ease: "linear",
                 }}
+                style={{ willChange: 'transform' }}
               >
                 {slangRow.map((slang, i) => (
                   <div
                     key={`row7-${i}`}
                     className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                                font-mono text-lg font-bold text-white/30"
+                    style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
                   >
                     {slang}
                   </div>
@@ -326,7 +340,7 @@ export default function ManifestoPage() {
             </div>
 
             {/* Row 8 - Bottom - Moving Right */}
-            <div className="absolute top-[96%] left-0 whitespace-nowrap">
+            <div className="absolute top-[96%] left-0 whitespace-nowrap will-change-transform">
               <motion.div
                 className="flex gap-4"
                 animate={{ x: [-2400, 0] }}
@@ -335,12 +349,14 @@ export default function ManifestoPage() {
                   repeat: Infinity,
                   ease: "linear",
                 }}
+                style={{ willChange: 'transform' }}
               >
                 {slangRow.map((slang, i) => (
                   <div
                     key={`row8-${i}`}
                     className="px-5 py-2 bg-white/5 rounded-md border border-white/10 
                                font-mono text-lg font-bold text-white/30"
+                    style={{ backfaceVisibility: 'hidden', transform: 'translateZ(0)' }}
                   >
                     {slang}
                   </div>
