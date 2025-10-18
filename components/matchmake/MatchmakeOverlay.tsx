@@ -4,8 +4,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getSession } from '@/lib/session';
-import { getReel, getQueue, ReelUser } from '@/lib/matchmaking';
-import { connectSocket, getSocket } from '@/lib/socket';
+import { getQueue, ReelUser } from '@/lib/matchmaking';
+import { connectSocket } from '@/lib/socket';
 import { UserCard } from './UserCard';
 import { CalleeNotification } from './CalleeNotification';
 
@@ -32,8 +32,93 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
   const [showCursor, setShowCursor] = useState(false);
   const touchStartY = useRef<number>(0);
   const touchStartX = useRef<number>(0);
+  const [viewedUserIds, setViewedUserIds] = useState<Set<string>>(new Set()); // Track by userId, not index
+  const [isRateLimited, setIsRateLimited] = useState(false);
   
   const socketRef = useRef<any>(null);
+
+  // Load rate limit state from sessionStorage on mount (survives overlay close/open)
+  useEffect(() => {
+    const savedLimit = sessionStorage.getItem('napalmsky_rate_limit');
+    if (savedLimit) {
+      const { expiry, viewedIds } = JSON.parse(savedLimit);
+      if (Date.now() < expiry) {
+        setIsRateLimited(true);
+        setViewedUserIds(new Set(viewedIds));
+        console.log('[RateLimit] Restored active rate limit from session');
+      } else {
+        sessionStorage.removeItem('napalmsky_rate_limit');
+      }
+    }
+  }, []);
+
+  // Track navigation rate and apply cooldown if needed
+  const trackNavigation = useCallback((userId: string) => {
+    const now = Date.now();
+    
+    // Add userId to viewed set (use Array.from for TS compatibility)
+    setViewedUserIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(userId);
+      return newSet;
+    });
+    
+    // Get timestamps from sessionStorage (persistent across overlay close/open)
+    const stored = sessionStorage.getItem('napalmsky_nav_timestamps');
+    let timestamps: number[] = stored ? JSON.parse(stored) : [];
+    
+    // Add current navigation
+    timestamps.push(now);
+    
+    // Keep only last 30 seconds (prevent infinite growth)
+    const thirtySecondsAgo = now - 30000;
+    timestamps = timestamps.filter(ts => ts > thirtySecondsAgo);
+    
+    // Save back to sessionStorage
+    sessionStorage.setItem('napalmsky_nav_timestamps', JSON.stringify(timestamps));
+    
+    // Check if 10+ NEW card views in 30 seconds
+    if (timestamps.length >= 10 && !isRateLimited) {
+      const cooldownEnd = now + 180000; // 3 minutes
+      setIsRateLimited(true);
+      
+      // Save rate limit to sessionStorage (survives overlay close/open)
+      sessionStorage.setItem('napalmsky_rate_limit', JSON.stringify({
+        expiry: cooldownEnd,
+        viewedIds: Array.from(viewedUserIds),
+      }));
+      
+      showToast('Slow down! 3-minute cooldown. You can still review seen cards.', 'error');
+      
+      // Auto-remove after 3 minutes
+      setTimeout(() => {
+        setIsRateLimited(false);
+        sessionStorage.removeItem('napalmsky_rate_limit');
+        sessionStorage.removeItem('napalmsky_nav_timestamps');
+        showToast('Cooldown ended! Explore new cards again.', 'info');
+      }, 180000);
+    }
+  }, [isRateLimited, viewedUserIds]);
+
+  // Check if rate limit expired (on mount and interval)
+  useEffect(() => {
+    const checkExpiry = () => {
+      const savedLimit = sessionStorage.getItem('napalmsky_rate_limit');
+      if (savedLimit) {
+        const { expiry } = JSON.parse(savedLimit);
+        if (Date.now() >= expiry) {
+          setIsRateLimited(false);
+          sessionStorage.removeItem('napalmsky_rate_limit');
+          sessionStorage.removeItem('napalmsky_nav_timestamps');
+          console.log('[RateLimit] Cooldown expired');
+        }
+      }
+    };
+    
+    checkExpiry();
+    const interval = setInterval(checkExpiry, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Track mouse position for cursor-synced arrow
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -93,7 +178,7 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
         // Swiped up - go to next
         goToNext();
       } else {
-        // Swiped down - go to previous
+        // Swiped down - go to previous (always allowed)
         goToPrevious();
       }
     }
@@ -179,6 +264,16 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
       setUsers(sortedUsers);
       setTotalAvailable(queueData.totalAvailable); // Store total available count
       setCurrentIndex(0);
+      
+      // Mark first user as viewed
+      if (sortedUsers.length > 0 && sortedUsers[0]) {
+        setViewedUserIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(sortedUsers[0].userId);
+          return newSet;
+        });
+      }
+      
       console.log('[Matchmake] State updated - should now show', filteredUsers.length, 'users');
     } catch (err: any) {
       console.error('[Matchmake] Failed to load initial queue:', err);
@@ -451,17 +546,34 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
   }, [users, currentIndex]);
 
   // Navigate cards (TikTok-style)
-  const goToNext = () => {
-    if (currentIndex < users.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+  const goToNext = useCallback(() => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= users.length) return;
+    
+    const nextUser = users[nextIndex];
+    if (!nextUser) return;
+    
+    // Check if this is a NEW card (by userId)
+    const isNewCard = !viewedUserIds.has(nextUser.userId);
+    
+    if (isRateLimited && isNewCard) {
+      showToast('Rate limited! Review cards you\'ve already seen.', 'error');
+      return;
     }
-  };
+    
+    // Track navigation for NEW cards only
+    if (isNewCard) {
+      trackNavigation(nextUser.userId);
+    }
+    
+    setCurrentIndex(nextIndex);
+  }, [currentIndex, users, isRateLimited, viewedUserIds, trackNavigation]);
 
-  const goToPrevious = () => {
+  const goToPrevious = useCallback(() => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
     }
-  };
+  }, [currentIndex]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -766,8 +878,8 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
             }}
           >
             {mouseY < window.innerHeight / 2 ? (
-              // Top half - Up arrow
-              currentIndex > 0 && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && (
+              // Top half - Up arrow or disabled icon
+              currentIndex > 0 && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' ? (
                 <svg 
                   className="h-10 w-10 text-white/70 drop-shadow-lg" 
                   fill="none" 
@@ -777,26 +889,87 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                 </svg>
-              )
-            ) : (
-              // Bottom half - Down arrow
-              (currentIndex < users.length - 1 || hasMore) && inviteStatuses[users[currentIndex]?.userId] !== 'waiting' && (
+              ) : (
+                // Can't go up - show error/disabled icon
                 <svg 
-                  className="h-10 w-10 text-white/70 drop-shadow-lg" 
+                  className="h-10 w-10 text-red-400/60 drop-shadow-lg" 
                   fill="none" 
                   viewBox="0 0 24 24" 
                   stroke="currentColor" 
                   strokeWidth={2.5}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                 </svg>
               )
+            ) : (
+              // Bottom half - Down arrow, error if at end, or rate limited icon
+              (() => {
+                const nextIndex = currentIndex + 1;
+                const nextUser = users[nextIndex];
+                const isNewCard = nextUser && !viewedUserIds.has(nextUser.userId);
+                const canGoDown = currentIndex < users.length - 1 || hasMore;
+                const isBlocked = isRateLimited && isNewCard;
+                
+                if (inviteStatuses[users[currentIndex]?.userId] === 'waiting') {
+                  // Waiting state - show disabled
+                  return (
+                    <svg 
+                      className="h-10 w-10 text-red-400/60 drop-shadow-lg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                  );
+                } else if (isBlocked) {
+                  // Rate limited - show clock/pause icon
+                  return (
+                    <svg 
+                      className="h-10 w-10 text-orange-400/70 drop-shadow-lg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  );
+                } else if (canGoDown) {
+                  // Can go down - show down arrow
+                  return (
+                    <svg 
+                      className="h-10 w-10 text-white/70 drop-shadow-lg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  );
+                } else {
+                  // Can't go down - show error/disabled icon
+                  return (
+                    <svg 
+                      className="h-10 w-10 text-red-400/60 drop-shadow-lg" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                  );
+                }
+              })()
             )}
           </div>
         )}
 
-        {/* Compact Header - Top Right */}
-        <div className="absolute top-6 right-6 flex items-center gap-4 z-20">
+        {/* Compact Header - Top Right (Hidden on mobile for minimal UI) */}
+        <div className="absolute top-6 right-6 items-center gap-4 z-20 hidden md:flex">
           <div className="text-right">
             <h2 className="font-playfair text-2xl font-bold text-white drop-shadow-lg">
               Matchmake
@@ -805,6 +978,24 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
               {totalAvailable} {totalAvailable === 1 ? 'person' : 'people'} online
             </p>
           </div>
+          <button
+            onClick={handleClose}
+            disabled={!!incomingInvite}
+            style={{
+              display: Object.values(inviteStatuses).includes('waiting') ? 'none' : 'block'
+            }}
+            className="focus-ring rounded-full bg-black/60 p-3 backdrop-blur-md transition-all hover:bg-black/80 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Close matchmaking"
+            title={incomingInvite ? "Cannot close while receiving a call" : "Close matchmaking"}
+          >
+            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Mobile: Close button only (top right corner) */}
+        <div className="absolute top-6 right-6 z-20 flex md:hidden">
           <button
             onClick={handleClose}
             disabled={!!incomingInvite}

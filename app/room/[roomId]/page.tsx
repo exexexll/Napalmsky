@@ -1114,16 +1114,6 @@ export default function RoomPage() {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center space-y-8 px-8"
           >
-            {/* Animated Spinner */}
-            <div className="relative mx-auto">
-              <div className="w-32 h-32 border-8 border-[#ff9b6b]/20 border-t-[#ff9b6b] rounded-full animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-16 h-16 text-[#ff9b6b]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </div>
-            </div>
-            
             {/* Connection Phase Messages */}
             <div className="space-y-3">
               <h3 className="font-playfair text-3xl font-bold text-white">
@@ -1138,7 +1128,7 @@ export default function RoomPage() {
               </p>
             </div>
 
-            {/* Progress Indicator */}
+            {/* Progress Bar Only (removed spinning circle) */}
             <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden mx-auto">
               <motion.div
                 className="h-full bg-gradient-to-r from-[#ff9b6b] to-[#ff7a3d]"
