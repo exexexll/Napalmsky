@@ -838,6 +838,37 @@ io.on('connection', (socket) => {
       const actualDuration = Math.floor((Date.now() - room.startedAt) / 1000);
 
       if (user1 && user2) {
+        // Track session completion for QR grace period (both users)
+        // Only if duration >= 30 seconds (prevents gaming)
+        if (actualDuration >= 30) {
+          await store.trackSessionCompletion(room.user1, room.user2, roomId, actualDuration);
+          await store.trackSessionCompletion(room.user2, room.user1, roomId, actualDuration);
+          
+          // Check if either user unlocked QR and notify them
+          const user1Status = await store.getQrUnlockStatus(room.user1);
+          const user2Status = await store.getQrUnlockStatus(room.user2);
+          
+          if (user1Status.unlocked && user1Status.sessionsCompleted === 4) {
+            const user1Socket = activeSockets.get(room.user1);
+            if (user1Socket) {
+              io.to(user1Socket).emit('qr:unlocked', {
+                message: '🎉 Congratulations! You\'ve unlocked your QR code!',
+                sessionsCompleted: 4,
+              });
+            }
+          }
+          
+          if (user2Status.unlocked && user2Status.sessionsCompleted === 4) {
+            const user2Socket = activeSockets.get(room.user2);
+            if (user2Socket) {
+              io.to(user2Socket).emit('qr:unlocked', {
+                message: '🎉 Congratulations! You\'ve unlocked your QR code!',
+                sessionsCompleted: 4,
+              });
+            }
+          }
+        }
+        
         // Only save to history if call lasted at least 5 seconds (prevents accidental/spam calls)
         if (actualDuration >= 5) {
           // Save to history for both users
