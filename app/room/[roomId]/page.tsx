@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { getSession } from '@/lib/session';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import { reportUser } from '@/lib/api';
-import { getMediaConstraints, getIceServers, detectDevice } from '@/lib/webrtc-config';
+import { getMediaConstraints, getOptimalRTCConfig, detectDevice, getConnectionTimeout, getICEGatheringTimeout } from '@/lib/webrtc-config';
 import { FloatingBrowser } from '@/components/FloatingBrowser';
 import { useLinkInterceptor } from '@/lib/useLinkInterceptor';
 
@@ -304,42 +304,32 @@ export default function RoomPage() {
           localVideoRef.current.muted = true; // Always mute local preview
         }
 
-        // 2. EFFICIENCY: Get ICE servers (uses cache if available, saves 0.5-1s)
-        console.log('[WebRTC] Getting ICE servers...');
+        // 2. EFFICIENCY: Get optimal RTCConfiguration (handles mobile/VPN/Safari)
+        console.log('[WebRTC] Getting optimal RTC configuration...');
         setConnectionPhase('gathering');
         
-        const iceServers = await getIceServers(currentSession.sessionToken);
+        const config = await getOptimalRTCConfig(currentSession.sessionToken);
 
-        // 3. Create RTCPeerConnection with Safari-optimized config
-        const config: RTCConfiguration = {
-          iceServers,
-          iceCandidatePoolSize: 10, // Buffer candidates
-          // Safari on mobile: Force TURN relay for better stability
-          iceTransportPolicy: (isSafari && isMobile) ? 'relay' : 'all',
-          bundlePolicy: 'max-bundle',
-          rtcpMuxPolicy: 'require',
-          // Safari-specific: Prefer H.264 codec
-          ...(isSafari && { 
-            sdpSemantics: 'unified-plan',
-          })
-        };
-
+        // 3. Create RTCPeerConnection with optimized config
         const pc = new RTCPeerConnection(config);
         peerConnectionRef.current = pc;
 
-        console.log('[WebRTC] PeerConnection created with', iceServers.length, 'ICE servers');
+        console.log('[WebRTC] PeerConnection created with', config.iceServers?.length || 0, 'ICE servers');
         console.log('[WebRTC] Config:', { 
           iceTransportPolicy: config.iceTransportPolicy,
           isSafari,
           isMobile 
         });
         
-        // Safari on mobile needs longer timeout (45s vs 30s)
-        const timeoutDuration = (isSafari && isMobile) ? 45000 : 30000;
+        // Get device-appropriate timeout (60s for iOS Safari, 45s mobile, 30s desktop)
+        const timeoutDuration = getConnectionTimeout();
         const connectionTimeout = setTimeout(() => {
           if (pc.connectionState !== 'connected') {
             console.error(`[WebRTC] Connection timeout after ${timeoutDuration/1000} seconds`);
-            setPermissionError(`Connection timeout - ${isSafari ? 'Safari on mobile may need both users to keep app in foreground' : 'please check your internet connection and try again'}`);
+            const errorMsg = isSafari && isMobile 
+              ? 'Safari on mobile may need both users to keep app in foreground. Try switching to Chrome or keeping the screen on.'
+              : 'Connection timeout - please check your internet connection and try again. If using VPN, try disabling it.';
+            setPermissionError(errorMsg);
             setShowPermissionSheet(true);
           }
         }, timeoutDuration);
@@ -976,11 +966,17 @@ export default function RoomPage() {
             
             pc.addEventListener('icecandidate', checkCandidate);
             
-            // Timeout: Wait longer for Safari mobile
-            const gatherTimeout = (isSafari && isMobile) ? 6000 : 4000;
+            // Use device-appropriate gathering timeout (8s iOS Safari, 6s Safari, 5s mobile, 4s desktop)
+            const gatherTimeout = getICEGatheringTimeout();
             setTimeout(() => {
               console.log(`[WebRTC] ICE gather timeout after ${gatherTimeout}ms, proceeding with ${candidateCount} candidates`);
               console.log(`[WebRTC] Has relay candidate: ${hasRelay}`);
+              
+              // CRITICAL: If no relay and on mobile, warn about potential issues
+              if (!hasRelay && isMobile) {
+                console.warn('[WebRTC] ⚠️ No TURN relay candidate found on mobile - connection may fail');
+              }
+              
               pc.removeEventListener('icecandidate', checkCandidate);
               resolve();
             }, gatherTimeout);

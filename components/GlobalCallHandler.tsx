@@ -80,6 +80,10 @@ export function GlobalCallHandler() {
       lastSessionToken.current = session.sessionToken;
       // Force re-initialization for new sessions
       listenersSetupRef.current = false;
+      
+      // CRITICAL: Clear any stale socket reference for new sessions
+      // This ensures we get a fresh socket with the new auth token
+      socketRef.current = null;
     }
 
     console.log('[GlobalCallHandler] Initializing socket connection...');
@@ -87,15 +91,17 @@ export function GlobalCallHandler() {
 
     // Get or create socket connection
     let socket = getSocket();
-    if (!socket) {
-      console.log('[GlobalCallHandler] No socket exists, creating new connection...');
-      socket = connectSocket(session.sessionToken);
-    } else if (!socket.connected) {
-      console.log('[GlobalCallHandler] Socket exists but not connected, reconnecting...');
-      socket = connectSocket(session.sessionToken);
-    } else if (isNewSession) {
-      // New session but socket exists - reconnect with new token
-      console.log('[GlobalCallHandler] New session, reconnecting socket with new token...');
+    
+    // CRITICAL: For new sessions, always create a fresh connection
+    // This ensures the new user's auth token is used
+    if (isNewSession || !socket || !socket.connected) {
+      if (isNewSession) {
+        console.log('[GlobalCallHandler] New session - creating fresh socket connection...');
+      } else if (!socket) {
+        console.log('[GlobalCallHandler] No socket exists, creating new connection...');
+      } else {
+        console.log('[GlobalCallHandler] Socket exists but not connected, reconnecting...');
+      }
       socket = connectSocket(session.sessionToken);
     } else {
       console.log('[GlobalCallHandler] Reusing existing connected socket:', socket.id);
@@ -130,8 +136,19 @@ export function GlobalCallHandler() {
       }
     };
     
+    // Listen for auth:success to ensure user is properly authenticated
+    const handleAuthSuccess = () => {
+      console.log('[GlobalCallHandler] ✅ Socket authenticated successfully');
+      // Re-init background queue after auth to ensure proper state
+      if (socket) {
+        backgroundQueue.init(socket);
+      }
+    };
+    
     socket.off('connect', handleConnect); // Remove any existing
     socket.on('connect', handleConnect);
+    socket.off('auth:success', handleAuthSuccess);
+    socket.on('auth:success', handleAuthSuccess);
     
     // CRITICAL: ALWAYS initialize background queue with socket
     backgroundQueue.init(socket);

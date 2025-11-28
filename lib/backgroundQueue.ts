@@ -259,12 +259,12 @@ class BackgroundQueueManager {
       return;
     }
 
-    // CRITICAL: Check location consent
+    // Location consent check - warn but don't block
+    // Users can join queue without location, they just won't see distance-based sorting
     const consent = typeof window !== 'undefined' ? localStorage.getItem('bumpin_location_consent') : null;
     if (this.isBackgroundEnabled() && consent !== 'true') {
-      console.warn('[BackgroundQueue] ⚠️ Location consent missing, cannot join background queue');
-      // We don't force disable the toggle here to avoid UI flicker, but we don't join
-      return;
+      console.warn('[BackgroundQueue] ⚠️ Location consent missing - queue will work but without distance sorting');
+      // Continue anyway - location is optional for queue functionality
     }
     
     // If background queue is disabled, only allow from /main

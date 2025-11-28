@@ -634,9 +634,10 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
         setTotalAvailable(prev => Math.max(0, prev - 1));
       } else {
         // User became available - refresh queue to add them
-        // Use 500ms delay to ensure server has processed the join and user data is in cache
-        console.log('[Matchmake] User available, refreshing queue in 500ms...');
-        setTimeout(() => checkForNewUsers(), 500);
+        // Use 1000ms delay to ensure server has fully processed the join and user data is in cache
+        // This is especially important for new accounts where data might not be cached yet
+        console.log('[Matchmake] User available, refreshing queue in 1000ms...');
+        setTimeout(() => checkForNewUsers(), 1000);
       }
     });
 

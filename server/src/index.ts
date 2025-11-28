@@ -888,6 +888,22 @@ io.on('connection', (socket) => {
       return;
     }
     
+    // CRITICAL: Ensure user data is loaded into cache before broadcasting
+    // This fixes the issue where new accounts don't appear in queue immediately
+    const user = await store.getUser(currentUserId);
+    if (!user) {
+      console.error(`[Queue] ❌ User ${currentUserId.substring(0, 8)} not found in database - cannot join queue`);
+      socket.emit('error', { message: 'User profile not found. Please refresh the page.' });
+      return;
+    }
+    
+    // Check if profile is complete (has selfie)
+    if (!user.selfieUrl) {
+      console.warn(`[Queue] ⚠️ User ${currentUserId.substring(0, 8)} has incomplete profile - blocking queue join`);
+      socket.emit('queue:blocked', { reason: 'profile_incomplete' });
+      return;
+    }
+    
     // First ensure user is online
     const currentPresence = store.getPresence(currentUserId);
     if (!currentPresence || !currentPresence.online) {
@@ -910,8 +926,9 @@ io.on('connection', (socket) => {
 
     const presence = store.getPresence(currentUserId);
     console.log(`[Queue] ${currentUserId.substring(0, 8)} joined queue - online: ${presence?.online}, available: ${presence?.available}`);
+    console.log(`[Queue] User profile: ${user.name}, hasSelfie: ${!!user.selfieUrl}`);
     
-    // Broadcast to all users
+    // Broadcast to all users (user data is now guaranteed to be in cache)
     io.emit('queue:update', {
       userId: currentUserId,
       available: true,
