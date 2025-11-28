@@ -22,21 +22,47 @@ export default function HomePage() {
               </h2>
               <div className="space-y-6 text-base leading-relaxed text-[#e6e6e9]/90 sm:text-lg">
                 <p>
-                  <strong className="text-[#ffc46a]">BUMPIN</strong> is a networking platform designed to introduce relationships that last. We believe in the power of serendipity and the kind of authenticity few platforms still offer today. Our goal is to provide an algorithm-free, location-based matchmaking experience—like how you bump into people by accident, only now you can do it anywhere, anytime.
+                  <strong className="text-[#ffc46a]">BUMPIN</strong> is where you meet people face-to-face. No algorithms, no endless swiping—just real conversations with people nearby. Like bumping into someone by accident, only now you can do it anywhere, anytime.
                 </p>
                 
                 <div className="border-l-4 border-[#ffc46a] pl-6 my-6">
-                  <h3 className="font-bold text-[#eaeaf0] mb-2">Up to 500 seconds.</h3>
+                  <h3 className="font-bold text-[#eaeaf0] mb-2">Conversations have a timer.</h3>
                   <p className="text-[#e6e6e9]/80">
-                    Most conversations should happen offline. Omegle made the mistake of allowing endless hours of chatting with strangers—that&apos;s time wasted. BUMPIN is strictly a meet-and-greet space, made for people looking to find friends nearby.
+                    Real friendships happen offline. Unlike Omegle&apos;s endless chatting, BUMPIN is a meet-and-greet space. Connect, vibe, exchange socials, then take it to the real world.
                   </p>
                 </div>
 
                 <div className="border-l-4 border-[#ffc46a] pl-6 my-6">
-                  <h3 className="font-bold text-[#eaeaf0] mb-2">No AI.</h3>
+                  <h3 className="font-bold text-[#eaeaf0] mb-2">No AI. No bots. Just humans.</h3>
                   <p className="text-[#e6e6e9]/80">
-                    BUMPIN stands by the principle and movement of saying no to AI. Artificial intelligence shouldn&apos;t interfere in human connections—for both privacy and practical reasons.
+                    Every person you meet is real. We verify users to keep bots out and build a trusted community.
                   </p>
+                </div>
+                
+                {/* Privacy & Info Pills */}
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-[#e6e6e9]/70">
+                    <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Location never shared
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-[#e6e6e9]/70">
+                    <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Calls not recorded
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-[#e6e6e9]/70">
+                    <svg className="w-4 h-4 text-[#ffc46a]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Works on mobile
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-sm text-red-300">
+                    18+ only
+                  </span>
                 </div>
               </div>
               

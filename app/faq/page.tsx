@@ -16,135 +16,135 @@ const faqs: FAQItem[] = [
   {
     category: 'general',
     question: 'What is BUMPIN?',
-    answer: 'BUMPIN is a 1-1 video social network where you meet new people through live video or text chat. No swiping, no profiles to curate - just authentic face-to-face connections with people nearby or around the world.'
+    answer: 'BUMPIN lets you video chat or text with people nearby. No profiles to curate, no swiping—just real conversations with real people.'
   },
   {
     category: 'general',
     question: 'How does matchmaking work?',
-    answer: "Open matchmaking to browse available users. When you find someone interesting, set your preferred call length (60-500 seconds) and send an invite. If they accept, you'll both be connected in a video or text room. The final duration is averaged between both users' preferences."
+    answer: "Browse who's online, pick someone interesting, set your preferred call length, and send an invite. If they accept, you're connected instantly. The call duration is averaged between both preferences."
   },
   {
     category: 'general',
     question: 'What makes BUMPIN different from other apps?',
-    answer: 'BUMPIN focuses on real-time authentic connection: (1) Live video/text calls only, (2) Timed conversations create natural endings, (3) No endless chatting before meeting, (4) Location-based matching shows nearby people, (5) 24-hour cooldown encourages diverse connections.'
+    answer: 'Live video and text only—no endless messaging before meeting. Timed conversations create natural endings. Location-based matching shows people nearby. 24-hour cooldown keeps things fresh.'
   },
   
   // ACCOUNT
   {
     category: 'account',
     question: 'What are Guest vs Permanent accounts?',
-    answer: 'Guest accounts are free, require no email, and last 7 days. Permanent accounts require email/password and last indefinitely. Both have full access after verification. You can upgrade guest to permanent anytime in Settings.'
+    answer: 'Guest accounts are free and last 7 days. No email needed. Permanent accounts require email/password and last forever. Both have full access. Upgrade anytime in Settings.'
   },
   {
     category: 'account',
     question: 'How do I verify my account?',
-    answer: 'Three ways: (1) Pay $0.50 one-time fee via Stripe, (2) Use an invite code from a friend (4 uses), or (3) For USC students: Scan admin QR code + USC Campus Card barcode. Verification prevents bots and gives you your own invite codes to share.'
+    answer: 'Why verify? To keep bots out and build a trusted community. Three ways: (1) $0.50 one-time payment, (2) Invite code from a friend, or (3) USC students: Scan admin QR + Campus Card. Verified users get their own invite codes to share.'
   },
   {
     category: 'account',
     question: 'How does USC Campus Card verification work?',
-    answer: 'USC students can verify for free: (1) Scan an admin QR code at campus events, (2) Scan your USC Campus Card barcode using your phone camera, (3) Complete profile setup. You get a 7-day guest account. To make it permanent, add your @usc.edu email in Settings. Your USC card can only be used once.'
+    answer: 'USC students verify for free: Scan an admin QR code at campus events, then scan your Campus Card barcode. You get a 7-day guest account. Add your @usc.edu email in Settings to make it permanent.'
   },
   {
     category: 'account',
-    question: 'What are invite codes and how do they work?',
-    answer: 'After verification, you get your own invite code with 4 uses. Share it with friends to give them free access. Each code can be used 4 times, creating viral growth. Check Settings to see your code and QR code.'
+    question: 'What are invite codes?',
+    answer: 'After verification, you get your own invite code with 4 uses. Share it with friends to give them free access. Check Settings to see your code and QR.'
   },
   {
     category: 'account',
     question: 'How do I delete my account?',
-    answer: 'Go to Settings → Delete Account. This removes all your data from both local storage and the server. For guest accounts, data auto-deletes after 7 days of inactivity anyway.'
+    answer: 'Settings → Delete Account. All your data is removed. Guest accounts auto-delete after 7 days of inactivity.'
   },
   
   // FEATURES
   {
     category: 'features',
     question: 'What is Video Mode vs Text Mode?',
-    answer: 'Video Mode: Face-to-face video calls with camera and audio (60-500 seconds, timed). Text Mode: Chat with text, images, and GIFs (unlimited duration, stays active as long as you\'re messaging). You can upgrade from text to video after 60 seconds.'
+    answer: 'Video Mode: Face-to-face calls with camera and audio (timed). Text Mode: Chat with text, images, and GIFs (unlimited, stays active while you\'re messaging). You can upgrade from text to video anytime.'
   },
   {
     category: 'features',
-    question: 'What is the Torch Rule in text mode?',
-    answer: "Text mode has unlimited duration but requires activity. If neither user sends a message for 2 minutes, you get a 60-second warning. Send any message to 'relight the torch' and continue. If the full 3 minutes of inactivity passes, the chat ends automatically."
+    question: 'What is the Torch Rule?',
+    answer: "Text mode is unlimited but requires activity. If no one messages for 2 minutes, you get a warning. Send any message to keep going. 3 minutes of silence = chat ends."
   },
   {
     category: 'features',
     question: 'What is the 24-hour cooldown?',
-    answer: "After completing a call with someone, you can't match with them again for 24 hours. This encourages meeting new people and prevents spam. The cooldown is automatic and applies to both video and text chats."
+    answer: "After a call, you can't match with the same person for 24 hours. This encourages meeting new people."
   },
   {
     category: 'features',
     question: 'How does location matching work?',
-    answer: 'Opt-in only. If you enable location, people nearby appear first in matchmaking. Your exact location is never shared - only approximate distance (like "500 ft away" or "2 mi away"). Location data expires after 24 hours and you can disable it anytime.'
+    answer: 'Opt-in only. Enable location to see nearby people first. We only show approximate distance ("500 ft away"), never your exact location. Disable anytime.'
   },
   {
     category: 'features',
-    question: 'What is the Intro/Wingperson feature?',
-    answer: "See someone you think your friend would like? Click 'Introduce Friend' to generate a unique link. Share it with your friend. When they sign up, the person you introduced them to gets notified. It's a matchmaker feature!"
+    question: 'What is the Wingperson feature?',
+    answer: "See someone your friend would like? Click 'Introduce Friend' to generate a link. When your friend signs up through it, they get connected."
   },
   {
     category: 'features',
-    question: 'Can I share my social media during a call?',
-    answer: "Yes! Click the 'Share Socials' button during video or text chat. This shares the handles you've set up in your Socials page (Instagram, Snapchat, TikTok, Discord, phone number). Both users can exchange socials to continue the conversation off-platform."
+    question: 'Can I share my socials during a call?',
+    answer: "Yes! Click 'Share Socials' to exchange Instagram, Snapchat, TikTok, Discord, or phone number. Take the conversation off-platform."
   },
   
   // SAFETY
   {
     category: 'safety',
-    question: 'How do you ensure safety on BUMPIN?',
-    answer: 'Multiple layers: (1) Verification prevents bots, (2) Report system with auto-ban at 4+ reports, (3) Admins review all bans, (4) Permanent bans go on public blacklist, (5) 24-hour cooldown prevents harassment, (6) IP bans for serious violations.'
+    question: 'How do you keep BUMPIN safe?',
+    answer: 'Verification keeps bots out. Report system with auto-ban at 4+ reports. Admins review all bans. Permanent bans go on public blacklist. 24-hour cooldown prevents harassment.'
   },
   {
     category: 'safety',
     question: 'How do I report someone?',
-    answer: 'After any call, click "Report & Block User". Provide a reason (optional). Admins see the full session data including chat messages. If a user gets 4+ reports from different people, they\'re auto-banned temporarily pending review.'
+    answer: 'After any call, click "Report & Block User". Admins review reports. 4+ reports from different people = auto-ban pending review.'
   },
   {
     category: 'safety',
     question: 'What happens if I\'m reported?',
-    answer: 'One report = logged for review. 4+ reports = automatic temporary ban while admins investigate. They can either permanently ban you (goes on public blacklist) or vindicate you (ban lifted). Decisions are final.'
+    answer: 'One report = logged. 4+ reports = temporary ban while admins investigate. They can permanently ban (public blacklist) or clear you. Decisions are final.'
   },
   {
     category: 'safety',
-    question: 'Can people record my video calls?',
-    answer: 'We don\'t record calls, but technically anyone can screen record. It\'s illegal in many jurisdictions without consent. If someone records you without permission, report them immediately. We take this very seriously.'
+    question: 'Are calls recorded?',
+    answer: 'No. We don\'t record calls. But anyone can screen record—if someone does without consent, report them immediately.'
   },
   {
     category: 'safety',
-    question: 'Is my location data private?',
-    answer: 'Yes. We only show approximate distance ("500 ft away"), never your exact coordinates. Location is rounded to ~100 meter precision and expires after 24 hours. You can disable it anytime in Settings.'
+    question: 'Is my location private?',
+    answer: 'Yes. We only show approximate distance, never exact coordinates. Location expires after 24 hours. Disable anytime in Settings.'
   },
   
   // TECHNICAL
   {
     category: 'technical',
     question: 'What do I need to use BUMPIN?',
-    answer: 'Requirements: (1) Webcam and microphone for video mode, (2) Modern browser (Chrome, Safari, Firefox, Edge), (3) Decent internet connection (3+ Mbps for video), (4) Must be 18+ years old. Mobile browsers supported but desktop recommended for video.'
+    answer: 'Webcam and mic for video. Modern browser (Chrome, Safari, Firefox, Edge). Decent internet. Must be 18+. Works on mobile but desktop is best for video.'
   },
   {
     category: 'technical',
-    question: 'Why can\'t I connect to some video calls?',
-    answer: 'Common reasons: (1) Firewall blocking WebRTC, (2) Poor internet connection, (3) One person denied camera/mic permission, (4) Mobile browser restrictions (iOS Safari needs app in foreground). Try refreshing or switching networks.'
+    question: 'Why can\'t I connect to some calls?',
+    answer: 'Common fixes: Check your internet connection. Make sure you allowed camera/mic permission. Try refreshing. On mobile, keep the app in foreground.'
   },
   {
     category: 'technical',
-    question: 'What happens if I lose internet during a call?',
-    answer: 'You have 10 seconds to reconnect automatically. The system tries 3 times to restore the connection. If you reconnect within the grace period, the call continues. After 10 seconds, the session ends and is saved to history.'
+    question: 'What if I lose internet during a call?',
+    answer: 'You have 10 seconds to reconnect automatically. If you make it back, the call continues. Otherwise, it ends and saves to history.'
   },
   {
     category: 'technical',
-    question: 'Why do I need to verify with $0.50 or an invite code?',
-    answer: 'Verification prevents bots, spam, and abuse. $0.50 is a one-time payment (never recurring). Verified users get invite codes to share with 4 friends for free. This creates a trusted community while keeping costs minimal.'
+    question: 'Why verify with $0.50?',
+    answer: 'Keeps bots and spam out. One-time payment, never recurring. Verified users get invite codes to share with 4 friends for free.'
   },
   {
     category: 'technical',
     question: 'Does BUMPIN work on mobile?',
-    answer: 'Yes! Both iOS and Android browsers are supported. Video calls work best on desktop but are functional on mobile. Text mode works great on mobile. For best experience on mobile, add BUMPIN to your home screen.'
+    answer: 'Yes! iOS and Android browsers both work. Text mode is great on mobile. For the best experience, add BUMPIN to your home screen.'
   },
   {
     category: 'technical',
     question: 'Where is my data stored?',
-    answer: 'User data is stored in PostgreSQL (secure cloud database). Photos and videos are stored on Cloudinary CDN. Video calls are peer-to-peer (not recorded or stored). Text chat messages are saved to history. All data is encrypted in transit (HTTPS).'
+    answer: 'Secure cloud servers. Video calls are direct between users—not recorded or stored. Text messages save to history. All data encrypted.'
   },
 ];
 

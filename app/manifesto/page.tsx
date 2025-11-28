@@ -11,6 +11,9 @@ const isMobileDevice = () => {
 };
 
 const meetPeopleReasons = [
+  "to grab coffee and actually talk.",
+  "to explore the city.",
+  "to find your people.",
   "to complain about professors.",
   "to split an Uber.",
   "to find someone who hates cardio too.",
@@ -34,7 +37,6 @@ const meetPeopleReasons = [
   "to get matching hoodies we'll never wear.",
   "to argue about pizza toppings.",
   "to cry-laugh over dumb TikToks.",
-  "to split a Costco membership.",
   "to go to IKEA and not buy anything.",
   "to make fake plans we'll cancel.",
   "to text \"wyd\" and never follow up.",
@@ -100,7 +102,6 @@ const meetPeopleReasons = [
   "to go to a museum and not read anything.",
   "to talk about astrology like it's science.",
   "to start a group project the night before.",
-  "to mispronounce wine names confidently.",
   "to go grocery shopping hungry and regret it.",
   "to overspend at Target.",
   "to walk into a bookstore and buy nothing.",
@@ -111,15 +112,20 @@ const meetPeopleReasons = [
   "to forget why we came to the mall.",
   "to go for \"one drink\" and stay out all night.",
   "to laugh at the same dumb joke 20 times.",
+  "to touch grass together.",
+  "to romanticize our lives.",
+  "to be each other's hype squad.",
 ];
 
 const slangTerms = [
-  "LOL", "ROFL", "LMAO", "BRB", "AFK", "TTYL", "SMH", "FTW", "BTW", "OMG",
-  "IDK", "IMO", "IMHO", "TBH", "NVM", "WTF", "TL;DR", "ICYMI", "DM", "IRL",
-  "NSFW", "GG", "Noob", "1337", "BFF", "JK", "FOMO", "YOLO", "Stan", "Cap",
+  "LOL", "LMAO", "BRB", "AFK", "TTYL", "SMH", "FTW", "BTW", "OMG",
+  "IDK", "TBH", "NVM", "WTF", "TL;DR", "ICYMI", "DM", "IRL",
+  "NSFW", "GG", "BFF", "JK", "FOMO", "YOLO", "Stan", "Cap",
   "No cap", "Sus", "Slay", "Flex", "Mood", "Vibe", "Salty", "Ghost", "Clout",
   "Drip", "Lit", "Lowkey", "Highkey", "Boujee", "Extra", "Tea", "Receipts",
-  "Bet", "Fam", "Shade", "Simp", "Main character",
+  "Bet", "Fam", "Shade", "Simp", "Main character", "NPC", "Delulu", "Rizz",
+  "Ate", "Snatched", "Era", "Ick", "Beige flag", "Situationship", "Gaslight",
+  "Gatekeep", "Girlboss", "Understood the assignment", "It's giving", "Sober curious",
 ];
 
 export default function ManifestoPage() {
