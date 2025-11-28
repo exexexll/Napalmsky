@@ -78,8 +78,7 @@ export function USCWelcomePopup({ onContinue }: USCWelcomePopupProps) {
           transition={{ delay: 0.6 }}
           className="text-white/90 text-lg sm:text-xl mb-8 leading-relaxed"
         >
-          Connect with fellow Trojans through authentic 1-on-1 video chats. 
-          Scan your USC campus card to verify your student status and get started.
+          Connect with fellow Trojans on campus and around the world, make lasting connections. Go USC!
         </motion.p>
 
         {/* CTA Button */}
