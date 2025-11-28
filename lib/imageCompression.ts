@@ -13,7 +13,7 @@ export interface CompressionResult {
 
 /**
  * Compress image to WebP format
- * @param file - Original image blob
+ * @param file - Original image blob or File
  * @param maxWidth - Maximum width (default: 800)
  * @param maxHeight - Maximum height (default: 800)
  * @param quality - Quality 0-1 (default: 0.85)
@@ -28,6 +28,16 @@ export async function compressImage(
     const img = new Image();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
+    
+    // Create blob URL and track it for cleanup
+    let blobUrl: string | null = null;
+
+    const cleanup = () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+        blobUrl = null;
+      }
+    };
 
     img.onload = () => {
       let { width, height } = img;
@@ -51,6 +61,7 @@ export async function compressImage(
         // Try WebP first (best compression)
         canvas.toBlob(
           (blob) => {
+            cleanup();
             if (blob) {
               const result: CompressionResult = {
                 blob,
@@ -72,12 +83,34 @@ export async function compressImage(
           quality
         );
       } else {
+        cleanup();
         reject(new Error('Canvas context not available'));
       }
     };
 
-    img.onerror = () => reject(new Error('Image load failed'));
-    img.src = URL.createObjectURL(file);
+    img.onerror = (e) => {
+      cleanup();
+      console.error('[Compression] Image load error:', e);
+      reject(new Error('Image load failed - file may be corrupted or unsupported format'));
+    };
+    
+    // CRITICAL: Read file as data URL first for better compatibility
+    // Some browsers have issues with blob URLs from File objects
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => {
+      // Fallback to blob URL if FileReader fails
+      console.log('[Compression] FileReader failed, falling back to blob URL');
+      try {
+        blobUrl = URL.createObjectURL(file);
+        img.src = blobUrl;
+      } catch (err) {
+        reject(new Error('Failed to read image file'));
+      }
+    };
+    reader.readAsDataURL(file);
   });
 }
 
