@@ -49,6 +49,7 @@ function OnboardingPageContent() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null); // Store original file to avoid CSP blob: fetch issues
 
   // Step 3: Video
   const [isRecording, setIsRecording] = useState(false);
@@ -625,11 +626,10 @@ function OnboardingPageContent() {
     try {
       let blob: Blob;
       
-      // Check if this is a file upload (blob URL) or camera capture (data URL)
-      if (capturedPhoto.startsWith('blob:')) {
-        // File upload - fetch the blob from the object URL
-        const response = await fetch(capturedPhoto);
-        blob = await response.blob();
+      // Check if this is a file upload or camera capture
+      if (photoFile) {
+        // File upload - use the stored File object directly (avoids CSP blob: fetch issues)
+        blob = photoFile;
         console.log('[Selfie] File upload - Original size:', (blob.size / 1024).toFixed(0), 'KB');
       } else if (canvasRef.current) {
         // Camera capture - convert canvas to blob
@@ -662,6 +662,7 @@ function OnboardingPageContent() {
       }
       
       setCapturedPhoto(null);
+      setPhotoFile(null); // Clear stored file
       setStep('permanent'); // Skip video, go straight to permanent
     } catch (err: any) {
       console.error('[Selfie] Upload error:', err);
@@ -673,6 +674,7 @@ function OnboardingPageContent() {
 
   const retakePhoto = () => {
     setCapturedPhoto(null);
+    setPhotoFile(null); // Clear stored file
     // Stop old stream and restart camera completely
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
@@ -708,9 +710,10 @@ function OnboardingPageContent() {
         setStream(null);
       }
       
-      // Create preview URL
+      // Create preview URL and store original file
       const previewUrl = URL.createObjectURL(file);
       setCapturedPhoto(previewUrl);
+      setPhotoFile(file); // Store original file to avoid CSP blob: fetch issues
       
       console.log('[Selfie] File selected:', file.name, (file.size / 1024).toFixed(0), 'KB');
     } catch (err: any) {

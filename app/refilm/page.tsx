@@ -28,6 +28,7 @@ export default function RefilmPage() {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [photoFromFile, setPhotoFromFile] = useState(false); // Track if photo came from file upload
+  const [photoFile, setPhotoFile] = useState<File | null>(null); // Store original file to avoid CSP blob: fetch issues
 
   // Video recording
   const [isRecording, setIsRecording] = useState(false);
@@ -170,10 +171,11 @@ export default function RefilmPage() {
         setStream(null);
       }
       
-      // Create preview URL
+      // Create preview URL and store original file
       const previewUrl = URL.createObjectURL(file);
       setCapturedPhoto(previewUrl);
       setPhotoFromFile(true); // Mark as file upload
+      setPhotoFile(file); // Store original file to avoid CSP blob: fetch issues
       setMode('photo'); // Switch to photo mode to show preview
       
       console.log('[Refilm] Photo file selected:', file.name, (file.size / 1024).toFixed(0), 'KB');
@@ -550,11 +552,10 @@ export default function RefilmPage() {
                           
                           let blob: Blob;
                           
-                          // Handle both file uploads (blob URL) and camera captures (data URL)
-                          if (photoFromFile && capturedPhoto.startsWith('blob:')) {
-                            // File upload - fetch the blob from the object URL
-                            const response = await fetch(capturedPhoto);
-                            blob = await response.blob();
+                          // Handle both file uploads and camera captures
+                          if (photoFromFile && photoFile) {
+                            // File upload - use the stored File object directly (avoids CSP blob: fetch issues)
+                            blob = photoFile;
                             console.log('[Refilm] File upload - Original size:', (blob.size / 1024).toFixed(0), 'KB');
                           } else {
                             // Camera capture - convert data URL to blob (CSP-safe method)
@@ -587,6 +588,7 @@ export default function RefilmPage() {
                           // Clear state
                           setCapturedPhoto(null);
                           setPhotoFromFile(false);
+                          setPhotoFile(null);
                           setMode('select');
                           setSuccess('Photo updated successfully!');
                           setTimeout(() => setSuccess(''), 3000);
