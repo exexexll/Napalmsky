@@ -29,6 +29,30 @@ interface Message {
   readAt?: Date;
 }
 
+// Helper function to map database message format to client format
+function mapDbMessageToClient(
+  m: any, 
+  peerUserId: string, 
+  peerName: string, 
+  peerSelfie: string, 
+  currentUserId: string
+): Message {
+  const isFromPeer = m.sender_user_id === peerUserId;
+  return {
+    messageId: m.message_id,
+    from: m.sender_user_id,
+    fromName: isFromPeer ? peerName : 'You',
+    fromSelfie: isFromPeer ? peerSelfie : undefined,
+    messageType: m.message_type,
+    content: m.content,
+    fileUrl: m.file_url,
+    fileName: m.file_name,
+    gifUrl: m.gif_url,
+    timestamp: new Date(m.sent_at),
+    readAt: m.read_at ? new Date(m.read_at) : undefined,
+  };
+}
+
 export default function TextChatRoom() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -158,11 +182,8 @@ export default function TextChatRoom() {
               newSocket.emit('textchat:get-history', { roomId }, (response: any) => {
                 if (response.success && response.messages) {
                   console.log(`[TextRoom] Reloaded ${response.messages.length} messages after reconnect`);
-                  setMessages(response.messages.map((m: any) => ({
-                    ...m,
-                    timestamp: new Date(m.sent_at),
-                    readAt: m.read_at ? new Date(m.read_at) : undefined,
-                  })));
+                  const session = getSession();
+                  setMessages(response.messages.map((m: any) => mapDbMessageToClient(m, peerUserId, peerName, peerSelfie, session?.userId || '')));
                 }
               });
               
@@ -198,14 +219,11 @@ export default function TextChatRoom() {
           socketRef.current.emit('textchat:sync-state', { roomId });
           
           // CRITICAL: Reload message history to catch any missed messages
+          const session = getSession();
           socketRef.current.emit('textchat:get-history', { roomId }, (response: any) => {
             if (response.success && response.messages) {
               console.log(`[TextRoom] Reloaded ${response.messages.length} messages after visibility change`);
-              setMessages(response.messages.map((m: any) => ({
-                ...m,
-                timestamp: new Date(m.sent_at),
-                readAt: m.read_at ? new Date(m.read_at) : undefined,
-              })));
+              setMessages(response.messages.map((m: any) => mapDbMessageToClient(m, peerUserId, peerName, peerSelfie, session?.userId || '')));
             }
           });
         }
@@ -338,11 +356,8 @@ export default function TextChatRoom() {
       socket.emit('textchat:get-history', { roomId }, (response: any) => {
         if (response.success && response.messages) {
           console.log(`[TextRoom] Reloaded ${response.messages.length} messages after reconnect`);
-          setMessages(response.messages.map((m: any) => ({
-            ...m,
-            timestamp: new Date(m.sent_at),
-            readAt: m.read_at ? new Date(m.read_at) : undefined,
-          })));
+          const session = getSession();
+          setMessages(response.messages.map((m: any) => mapDbMessageToClient(m, peerUserId, peerName, peerSelfie, session?.userId || '')));
         }
       });
       
@@ -468,11 +483,7 @@ export default function TextChatRoom() {
     // Load message history
     socket.emit('textchat:get-history', { roomId }, (response: any) => {
       if (response.success && response.messages) {
-        setMessages(response.messages.map((m: any) => ({
-          ...m,
-          timestamp: new Date(m.sent_at),
-          readAt: m.read_at ? new Date(m.read_at) : undefined,
-        })));
+        setMessages(response.messages.map((m: any) => mapDbMessageToClient(m, peerUserId, peerName, peerSelfie, session.userId)));
       }
     });
 
