@@ -709,6 +709,19 @@ class DataStore {
         // Ensure consistent ordering for database constraint
         const [user1, user2] = userId1 < userId2 ? [userId1, userId2] : [userId2, userId1];
         
+        // CRITICAL: Verify both users exist in database before inserting
+        // This prevents foreign key constraint violations for new accounts
+        const userCheck = await query(
+          'SELECT user_id FROM users WHERE user_id IN ($1, $2)',
+          [user1, user2]
+        );
+        
+        if (userCheck.rows.length < 2) {
+          console.warn('[Store] Cannot save cooldown to DB - user(s) not yet in database');
+          console.warn('[Store] Cooldown saved to memory only (will be lost on restart)');
+          return; // Skip DB insert, keep in memory
+        }
+        
         await query(
           `INSERT INTO cooldowns (user_id_1, user_id_2, expires_at, created_at)
            VALUES ($1, $2, $3, $4)
@@ -718,6 +731,7 @@ class DataStore {
         console.log('[Store] Cooldown saved to database:', userId1.substring(0, 8), '↔', userId2.substring(0, 8));
       } catch (error) {
         console.error('[Store] Failed to save cooldown to database:', error);
+        // Cooldown is still in memory, so it will work for this session
       }
     }
   }
