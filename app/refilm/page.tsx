@@ -672,14 +672,6 @@ export default function RefilmPage() {
                       </button>
                     </div>
                     
-                    {/* Upload from files option */}
-                    <button
-                      onClick={() => photoFileInputRef.current?.click()}
-                      className="focus-ring w-full rounded-xl bg-white/5 px-6 py-2.5 text-sm font-medium text-[#eaeaf0]/70 hover:bg-white/10 transition-all"
-                    >
-                      📁 Or upload from Photos / Files
-                    </button>
-                    
                     {!stream && (
                       <button
                         onClick={startCamera}
