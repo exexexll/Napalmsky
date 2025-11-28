@@ -357,6 +357,18 @@ class DataStore {
       // Also update in database if available
       if (this.useDatabase) {
         try {
+          // CRITICAL: Check if user exists in database first
+          // New accounts may still be in the process of being created
+          const existsCheck = await query('SELECT 1 FROM users WHERE user_id = $1', [userId]);
+          
+          if (existsCheck.rows.length === 0) {
+            // User not in database yet - create them first
+            console.warn('[Store] User not in database for update, creating first:', userId.substring(0, 8));
+            await this.createUser(updatedUser);
+            console.log('[Store] ✅ User created in database before update');
+            return; // createUser already saved all fields including updates
+          }
+          
           // Build dynamic UPDATE query based on what fields were updated
           const setClauses: string[] = [];
           const values: any[] = [];
