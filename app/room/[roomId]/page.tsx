@@ -545,6 +545,49 @@ export default function RoomPage() {
         const socket = connectSocket(currentSession.sessionToken);
         socketRef.current = socket;
 
+        // CRITICAL: Wait for socket to be connected before emitting
+        const waitForSocketConnection = (): Promise<void> => {
+          return new Promise((resolve, reject) => {
+            if (socket.connected) {
+              console.log('[Room] Socket already connected');
+              resolve();
+              return;
+            }
+            
+            console.log('[Room] Waiting for socket connection...');
+            const timeout = setTimeout(() => {
+              reject(new Error('Socket connection timeout'));
+            }, 10000); // 10 second timeout
+            
+            const handleConnect = () => {
+              clearTimeout(timeout);
+              socket.off('connect', handleConnect);
+              socket.off('connect_error', handleError);
+              console.log('[Room] Socket connected!');
+              resolve();
+            };
+            
+            const handleError = (err: Error) => {
+              clearTimeout(timeout);
+              socket.off('connect', handleConnect);
+              socket.off('connect_error', handleError);
+              reject(err);
+            };
+            
+            socket.on('connect', handleConnect);
+            socket.on('connect_error', handleError);
+          });
+        };
+        
+        try {
+          await waitForSocketConnection();
+        } catch (err) {
+          console.error('[Room] Socket connection failed:', err);
+          setPermissionError('Failed to connect to server. Please check your internet connection.');
+          setShowPermissionSheet(true);
+          return;
+        }
+
         // CRITICAL: Check if this is a reconnection (tab reload) or a NEW room
         const storedRoomId = sessionStorage.getItem('current_room_id');
         const wasActiveCall = sessionStorage.getItem('room_connection_active') === 'true';
@@ -577,7 +620,8 @@ export default function RoomPage() {
         sessionStorage.setItem('room_join_time', Date.now().toString());
         sessionStorage.setItem('room_connection_active', 'true');
         
-        // Join room
+        // Join room (socket is now guaranteed to be connected)
+        console.log('[Room] Emitting room:join for room:', roomId);
         socket.emit('room:join', { roomId });
         
         // CRITICAL FIX: Handle socket reconnection properly
@@ -1004,17 +1048,7 @@ export default function RoomPage() {
           
           socket.emit('rtc:offer', { roomId, offer });
           console.log('[WebRTC] ✅ Offer sent via socket');
-          
-          // Start connection timeout (45 seconds)
-          connectionTimeoutRef.current = setTimeout(() => {
-            if (connectionPhase !== 'connected') {
-              console.error('[WebRTC] Connection timeout - peer may have failed to connect');
-              setConnectionFailed(true);
-              setConnectionFailureReason('Connection timed out');
-              setShowPermissionSheet(true);
-              setPermissionError('Connection timed out. The other person might have connection issues or left.');
-            }
-          }, 45000);
+          // Note: Connection timeout is already set above with device-appropriate duration
         } else {
           console.log('[WebRTC] Waiting for offer (responder role)');
         }

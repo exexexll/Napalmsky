@@ -23,86 +23,78 @@ export function detectDevice() {
 
 /**
  * Detect if user is likely behind a VPN or restrictive network
- * Heuristics: Check for WebRTC IP leak protection, slow STUN, etc.
+ * FAST: Returns immediately if we have a cached result, otherwise runs async test
+ * Uses 1 second timeout to avoid blocking connection setup
  */
 export async function detectRestrictiveNetwork(): Promise<boolean> {
+  // Check cache first (valid for 5 minutes)
+  const cached = sessionStorage.getItem('bumpin_network_test');
+  if (cached) {
+    try {
+      const { isRestrictive, testedAt } = JSON.parse(cached);
+      if (Date.now() - testedAt < 300000) { // 5 minutes
+        console.log('[Network] Using cached result:', isRestrictive ? 'RESTRICTIVE' : 'NORMAL');
+        return isRestrictive;
+      }
+    } catch {
+      // Invalid cache, continue with test
+    }
+  }
+  
   try {
-    // Quick STUN connectivity test (2 second timeout)
+    // Quick STUN connectivity test (1 second timeout - faster!)
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
     
-    return new Promise((resolve) => {
-      let hasCandidate = false;
-      let resolved = false;
-      
-      const cleanup = () => {
-        if (!resolved) {
-          resolved = true;
-          try {
-            pc.close();
-          } catch {
-            // Ignore close errors
-          }
-        }
-      };
-      
-      const timeout = setTimeout(() => {
-        cleanup();
-        // No candidates in 2s = likely VPN/restrictive network
-        console.log('[Network] STUN test result:', hasCandidate ? 'OK (timeout)' : 'BLOCKED');
-        if (!resolved) {
-          resolved = true;
-          resolve(!hasCandidate);
-        }
-      }, 2000);
-      
-      pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          hasCandidate = true;
-          // Check if host or srflx candidates (normal network)
-          if (e.candidate.type === 'host' || e.candidate.type === 'srflx') {
-            clearTimeout(timeout);
-            cleanup();
-            if (!resolved) {
-              resolved = true;
-              console.log('[Network] STUN test result: OK (got', e.candidate.type, 'candidate)');
+    const result = await Promise.race([
+      new Promise<boolean>((resolve) => {
+        let hasCandidate = false;
+        
+        pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            hasCandidate = true;
+            // Got a candidate - network is working
+            if (e.candidate.type === 'host' || e.candidate.type === 'srflx') {
+              console.log('[Network] STUN test: OK (got', e.candidate.type, 'candidate)');
+              try { pc.close(); } catch {}
               resolve(false); // Normal network
             }
-          }
-        } else {
-          // null candidate = gathering complete
-          clearTimeout(timeout);
-          cleanup();
-          if (!resolved) {
-            resolved = true;
-            console.log('[Network] STUN test result:', hasCandidate ? 'OK (gathering complete)' : 'BLOCKED');
+          } else {
+            // null candidate = gathering complete
+            console.log('[Network] STUN test:', hasCandidate ? 'OK' : 'BLOCKED');
+            try { pc.close(); } catch {}
             resolve(!hasCandidate);
           }
-        }
-      };
-      
-      pc.onicegatheringstatechange = () => {
-        if (pc.iceGatheringState === 'complete' && !resolved) {
-          clearTimeout(timeout);
-          cleanup();
-          resolved = true;
-          console.log('[Network] STUN test result:', hasCandidate ? 'OK (state complete)' : 'BLOCKED');
-          resolve(!hasCandidate);
-        }
-      };
-      
-      pc.createDataChannel('test');
-      pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => {
-        clearTimeout(timeout);
-        cleanup();
-        if (!resolved) {
-          resolved = true;
-          resolve(false); // Assume normal on error
-        }
-      });
-    });
-  } catch {
+        };
+        
+        pc.createDataChannel('test');
+        pc.createOffer()
+          .then(o => pc.setLocalDescription(o))
+          .catch(() => {
+            try { pc.close(); } catch {}
+            resolve(false); // Assume normal on error
+          });
+      }),
+      // 1 second timeout - don't block connection setup
+      new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          console.log('[Network] STUN test: TIMEOUT (assuming normal)');
+          try { pc.close(); } catch {}
+          resolve(false); // Assume normal on timeout to avoid blocking
+        }, 1000);
+      })
+    ]);
+    
+    // Cache the result
+    sessionStorage.setItem('bumpin_network_test', JSON.stringify({
+      isRestrictive: result,
+      testedAt: Date.now()
+    }));
+    
+    return result;
+  } catch (error) {
+    console.log('[Network] STUN test error:', error);
     return false; // Assume normal on error
   }
 }
