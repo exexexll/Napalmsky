@@ -1165,6 +1165,10 @@ export default function RoomPage() {
     
     console.log('[Stats] Starting connection quality monitoring');
     
+    // CRITICAL: Track when monitoring started to avoid false positives during initial connection
+    const monitoringStartTime = Date.now();
+    const GRACE_PERIOD = 10000; // 10 seconds grace period for connection to stabilize
+    
     // Monitor every 5 seconds
     const monitorStats = async () => {
       if (!pc || pc.connectionState !== 'connected') {
@@ -1206,7 +1210,22 @@ export default function RoomPage() {
           bytesReceived: (bytesReceived / 1024).toFixed(0) + 'KB'
         });
         
-        // Determine quality level
+        // CRITICAL: Skip auto-disconnect during grace period (connection still stabilizing)
+        const inGracePeriod = (Date.now() - monitoringStartTime) < GRACE_PERIOD;
+        if (inGracePeriod) {
+          console.log('[Stats] In grace period - monitoring only, no auto-disconnect');
+          // Still set quality level for UI, but don't trigger disconnect
+          if (lossRate > 0.1 || jitterMs > 100 || rttMs > 300) {
+            setConnectionQuality('poor');
+          } else if (lossRate > 0.05 || jitterMs > 50 || rttMs > 150) {
+            setConnectionQuality('fair');
+          } else {
+            setConnectionQuality('good');
+          }
+          return;
+        }
+        
+        // Determine quality level (after grace period)
         if (lossRate > 0.1 || jitterMs > 100 || rttMs > 300) {
           setConnectionQuality('poor');
           console.warn('[Stats] ⚠️ Poor connection quality detected');
@@ -1257,13 +1276,16 @@ export default function RoomPage() {
       }
     };
     
-    // Initial check
-    monitorStats();
+    // CRITICAL: Don't run initial check immediately - wait 5s for connection to stabilize
+    // This prevents false positives during ICE candidate exchange
+    console.log('[Stats] Waiting 5s before first quality check (connection stabilizing)...');
+    const initialCheckTimeout = setTimeout(monitorStats, 5000);
     
-    // Set up interval
+    // Set up interval (starts after 5s)
     statsMonitorRef.current = setInterval(monitorStats, 5000);
     
     return () => {
+      clearTimeout(initialCheckTimeout);
       if (statsMonitorRef.current) {
         clearInterval(statsMonitorRef.current);
         statsMonitorRef.current = null;
