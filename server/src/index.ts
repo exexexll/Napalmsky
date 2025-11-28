@@ -261,6 +261,22 @@ async function syncRoomToDatabase(roomId: string, room: any): Promise<void> {
   if (!process.env.DATABASE_URL) return; // Skip if no DB
   
   try {
+    // CRITICAL: Verify both users exist in database before inserting
+    // This prevents foreign key constraint violations
+    const userCheck = await query(
+      'SELECT user_id FROM users WHERE user_id IN ($1, $2)',
+      [room.user1, room.user2]
+    );
+    
+    if (userCheck.rows.length < 2) {
+      const foundIds = userCheck.rows.map((r: any) => r.user_id);
+      const missingUser1 = !foundIds.includes(room.user1);
+      const missingUser2 = !foundIds.includes(room.user2);
+      console.warn(`[DB] Cannot sync room - user(s) not in database: ${missingUser1 ? 'user1' : ''} ${missingUser2 ? 'user2' : ''}`);
+      console.warn(`[DB] User1: ${room.user1.substring(0, 8)}, User2: ${room.user2.substring(0, 8)}`);
+      return; // Skip sync - users will be synced eventually
+    }
+    
     await query(`
       INSERT INTO active_rooms (room_id, user_1, user_2, started_at, duration_seconds, chat_mode, status, grace_period_expires, user_1_connected, user_2_connected, messages)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
