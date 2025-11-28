@@ -1331,6 +1331,9 @@ io.on('connection', (socket) => {
     
     // Emit confirmation so client knows join was successful
     socket.emit('room:joined', { roomId });
+    
+    // Notify other user that peer joined (fixes signaling race conditions)
+    socket.to(roomId).emit('room:user_joined', { userId: currentUserId });
   });
 
   // WebRTC signaling

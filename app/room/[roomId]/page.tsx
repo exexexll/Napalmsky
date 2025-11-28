@@ -313,7 +313,7 @@ export default function RoomPage() {
         // 3. Create RTCPeerConnection with Safari-optimized config
         const config: RTCConfiguration = {
           iceServers,
-          iceCandidatePoolSize: 10,
+          iceCandidatePoolSize: 10, // Buffer candidates
           // Safari on mobile: Force TURN relay for better stability
           iceTransportPolicy: (isSafari && isMobile) ? 'relay' : 'all',
           bundlePolicy: 'max-bundle',
@@ -525,7 +525,7 @@ export default function RoomPage() {
                 if (socketRef.current) {
                   socketRef.current.emit('connection:failed', { 
                     roomId, 
-                    reason: `${peerName} lost connection (reconnection failed)` 
+                    reason: `Connection lost with ${peerName}` 
                   });
                 }
                 
@@ -535,9 +535,9 @@ export default function RoomPage() {
                 }
                 
                 setConnectionFailed(true);
-                setConnectionFailureReason('Connection lost - unable to reconnect');
+                setConnectionFailureReason('Connection lost');
                 setShowPermissionSheet(true);
-                setPermissionError('Connection lost. Please refresh the page or check your internet connection.');
+                setPermissionError('Connection lost. We are trying to reconnect you automatically...');
               }
             }, gracePeriodMs);
             
@@ -614,6 +614,30 @@ export default function RoomPage() {
         
         // Store handler reference for cleanup
         (socket as any)._roomReconnectHandler = handleSocketReconnect;
+        
+        // Listen for new user joining (signaling race condition fix)
+        socket.on('room:user_joined', async ({ userId }: any) => {
+          console.log('[Room] Peer joined room channel:', userId);
+          
+          // If we are initiator and haven't connected yet, resend offer
+          // This handles case where we sent offer before peer joined room
+          if (isInitiator && pc.connectionState !== 'connected' && pc.connectionState !== 'connecting') {
+            console.log('[WebRTC] Peer joined and we are waiting - resending offer');
+            try {
+              // Create fresh offer
+              const offer = await pc.createOffer({ iceRestart: true });
+              await pc.setLocalDescription(offer);
+              
+              socket.emit('rtc:offer', { 
+                roomId, 
+                offer: pc.localDescription 
+              });
+              console.log('[WebRTC] Resent offer to newly joined peer');
+            } catch (err) {
+              console.error('[WebRTC] Error resending offer:', err);
+            }
+          }
+        });
         
         // Listen for room security events
         socket.on('room:invalid', () => {
@@ -984,7 +1008,10 @@ export default function RoomPage() {
           connectionTimeoutRef.current = setTimeout(() => {
             if (connectionPhase !== 'connected') {
               console.error('[WebRTC] Connection timeout - peer may have failed to connect');
-              setConnectionTimeout(true);
+              setConnectionFailed(true);
+              setConnectionFailureReason('Connection timed out');
+              setShowPermissionSheet(true);
+              setPermissionError('Connection timed out. The other person might have connection issues or left.');
             }
           }, 45000);
         } else {
@@ -1041,6 +1068,7 @@ export default function RoomPage() {
       if (socketRef.current) {
         // Remove room-specific event listeners
         socketRef.current.off('room:invalid');
+        socketRef.current.off('room:user_joined'); // Remove signaling race condition listener
         socketRef.current.off('room:joined');
         socketRef.current.off('room:unauthorized');
         socketRef.current.off('room:ended');
