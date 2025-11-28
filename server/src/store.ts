@@ -295,6 +295,7 @@ class DataStore {
       selfieUrl: row.selfie_url,
       videoUrl: row.video_url,
       socials: row.socials || {},
+      instagramPosts: row.instagram_posts || [], // CRITICAL: Include Instagram posts for UserCard carousel
       paidStatus: row.paid_status,
       paidAt: row.paid_at ? new Date(row.paid_at).getTime() : undefined,
       paymentId: row.payment_id,
