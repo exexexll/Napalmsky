@@ -20,8 +20,10 @@ export function securityHeaders(req: express.Request, res: express.Response, nex
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
   // Permissions Policy (restrict browser features)
+  // CRITICAL: geolocation=(self) is required for Safari - it strictly enforces this header
+  // Chrome is more lenient but Safari will block geolocation if set to ()
   res.setHeader('Permissions-Policy', 
-    'camera=(self), microphone=(self), geolocation=(), payment=()'
+    'camera=(self), microphone=(self), geolocation=(self), payment=()'
   );
   
   // Content Security Policy (XSS protection)
