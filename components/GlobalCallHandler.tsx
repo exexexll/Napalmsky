@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { getSession } from '@/lib/session';
 import { backgroundQueue } from '@/lib/backgroundQueue';
@@ -13,9 +13,11 @@ import { CalleeNotification } from '@/components/matchmake/CalleeNotification';
  */
 export function GlobalCallHandler() {
   const router = useRouter();
+  const pathname = usePathname(); // Track page changes to detect new session
   const [incomingInvite, setIncomingInvite] = useState<any>(null);
   const socketRef = useRef<any>(null);
   const listenersSetupRef = useRef(false);
+  const lastSessionToken = useRef<string | null>(null);
 
   // Setup listeners on a socket - reusable for initial setup and reconnection
   const setupListeners = useCallback((socket: any) => {
@@ -62,6 +64,7 @@ export function GlobalCallHandler() {
   }, [router]);
 
   // CRITICAL: Setup global socket listeners that persist across all pages
+  // Re-runs when pathname changes to catch new sessions after signup
   useEffect(() => {
     // CRITICAL: Connect socket if not already connected
     const session = getSession();
@@ -70,7 +73,17 @@ export function GlobalCallHandler() {
       return;
     }
 
+    // Check if this is a new session (e.g., after signup)
+    const isNewSession = lastSessionToken.current !== session.sessionToken;
+    if (isNewSession) {
+      console.log('[GlobalCallHandler] New session detected:', session.sessionToken.substring(0, 8));
+      lastSessionToken.current = session.sessionToken;
+      // Force re-initialization for new sessions
+      listenersSetupRef.current = false;
+    }
+
     console.log('[GlobalCallHandler] Initializing socket connection...');
+    console.log('[GlobalCallHandler] Current page:', pathname);
 
     // Get or create socket connection
     let socket = getSocket();
@@ -79,6 +92,10 @@ export function GlobalCallHandler() {
       socket = connectSocket(session.sessionToken);
     } else if (!socket.connected) {
       console.log('[GlobalCallHandler] Socket exists but not connected, reconnecting...');
+      socket = connectSocket(session.sessionToken);
+    } else if (isNewSession) {
+      // New session but socket exists - reconnect with new token
+      console.log('[GlobalCallHandler] New session, reconnecting socket with new token...');
       socket = connectSocket(session.sessionToken);
     } else {
       console.log('[GlobalCallHandler] Reusing existing connected socket:', socket.id);
@@ -97,19 +114,24 @@ export function GlobalCallHandler() {
     listenersSetupRef.current = true;
     
     // Listen for connect event (fires on initial connect AND reconnects)
-    socket.on('connect', () => {
+    const handleConnect = () => {
       console.log('[GlobalCallHandler] Socket connected/reconnected:', socket?.id);
       // Re-setup listeners in case socket was recreated
-      if (listenersSetupRef.current) {
-        const currentSocket = getSocket();
-        if (currentSocket && currentSocket !== socketRef.current) {
+      const currentSocket = getSocket();
+      if (currentSocket) {
+        if (currentSocket !== socketRef.current) {
           console.log('[GlobalCallHandler] Socket changed, re-attaching listeners...');
           socketRef.current = currentSocket;
           setupListeners(currentSocket);
-          backgroundQueue.init(currentSocket);
         }
+        // Always re-init background queue on connect
+        backgroundQueue.init(currentSocket);
+        console.log('[GlobalCallHandler] Background queue re-initialized on connect');
       }
-    });
+    };
+    
+    socket.off('connect', handleConnect); // Remove any existing
+    socket.on('connect', handleConnect);
     
     // CRITICAL: ALWAYS initialize background queue with socket
     backgroundQueue.init(socket);
@@ -121,7 +143,7 @@ export function GlobalCallHandler() {
       // keep listeners active for background queue to work
       console.log('[GlobalCallHandler] Cleanup called but keeping listeners active');
     };
-  }, [setupListeners]); // setupListeners is stable due to useCallback
+  }, [setupListeners, pathname]); // Re-run when page changes to catch new sessions
 
   return (
     <>

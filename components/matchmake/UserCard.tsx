@@ -610,7 +610,7 @@ export function UserCard({ user, onInvite, onRescind, inviteStatus = 'idle', coo
       
       {/* INSTAGRAM POSTS: Overlay on top of photo if available */}
       {mediaItems.length > 0 && (
-        <div className="absolute inset-0 bg-black/50" {...swipeHandlers}>
+        <div className="absolute inset-0 bg-black/30" {...swipeHandlers}>
           <div className="relative w-full h-full flex items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.div

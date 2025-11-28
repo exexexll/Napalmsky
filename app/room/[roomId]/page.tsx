@@ -1226,50 +1226,17 @@ export default function RoomPage() {
         }
         
         // Determine quality level (after grace period)
+        // NOTE: We only show quality indicators - NO auto-disconnect for poor quality
+        // Only disconnect when transmission completely stops (handled by pc.onconnectionstatechange)
         if (lossRate > 0.1 || jitterMs > 100 || rttMs > 300) {
           setConnectionQuality('poor');
-          console.warn('[Stats] ⚠️ Poor connection quality detected');
-          
-          // CRITICAL: Start poor connection timeout if not already started
-          if (!poorConnectionStartRef.current) {
-            poorConnectionStartRef.current = Date.now();
-            console.warn('[Stats] Poor connection timer started - will disconnect in 10s if not improved');
-            
-            // Auto-disconnect after 10 seconds of poor quality
-            poorConnectionTimeoutRef.current = setTimeout(() => {
-              console.error('[Stats] ❌ Poor connection for 10+ seconds - auto-disconnecting');
-              setConnectionFailureReason('Connection quality too poor - disconnected after 10 seconds');
-              setConnectionFailed(true);
-              setShowPermissionSheet(true);
-              handleEndCall();
-            }, 10000);
-          }
+          console.warn('[Stats] ⚠️ Poor connection quality detected (no auto-disconnect)');
         } else if (lossRate > 0.05 || jitterMs > 50 || rttMs > 150) {
           setConnectionQuality('fair');
           console.log('[Stats] Fair connection quality');
-          
-          // Clear poor connection timeout if quality improved
-          if (poorConnectionStartRef.current) {
-            console.log('[Stats] ✅ Connection quality improved from poor to fair');
-            poorConnectionStartRef.current = null;
-            if (poorConnectionTimeoutRef.current) {
-              clearTimeout(poorConnectionTimeoutRef.current);
-              poorConnectionTimeoutRef.current = null;
-            }
-          }
         } else {
           setConnectionQuality('good');
           console.log('[Stats] ✅ Good connection quality');
-          
-          // Clear poor connection timeout if quality improved
-          if (poorConnectionStartRef.current) {
-            console.log('[Stats] ✅ Connection quality improved from poor to good');
-            poorConnectionStartRef.current = null;
-            if (poorConnectionTimeoutRef.current) {
-              clearTimeout(poorConnectionTimeoutRef.current);
-              poorConnectionTimeoutRef.current = null;
-            }
-          }
         }
       } catch (error) {
         console.error('[Stats] Error getting stats:', error);

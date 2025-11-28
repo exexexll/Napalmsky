@@ -633,9 +633,10 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
         });
         setTotalAvailable(prev => Math.max(0, prev - 1));
       } else {
-        // User became available (call ended) - add back
-        console.log('[Matchmake] User available again, refreshing...');
-        setTimeout(() => checkForNewUsers(), 300);
+        // User became available - refresh queue to add them
+        // Use 500ms delay to ensure server has processed the join and user data is in cache
+        console.log('[Matchmake] User available, refreshing queue in 500ms...');
+        setTimeout(() => checkForNewUsers(), 500);
       }
     });
 
@@ -656,7 +657,7 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     const refreshInterval = setInterval(() => {
       console.log('[Matchmake] Polling for queue updates...');
       checkForNewUsers();
-    }, 10000); // 10s - gives server time to process real-time presence changes
+    }, 5000); // 5s - faster polling for new users
 
     // NOTE: call:notify is handled by main page - don't duplicate listener here
     // Main page will handle incoming calls and show CalleeNotification

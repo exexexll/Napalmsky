@@ -45,6 +45,7 @@ function OnboardingPageContent() {
   // Step 2: Selfie
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // For file upload
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -616,42 +617,52 @@ function OnboardingPageContent() {
   };
 
   const confirmPhoto = async () => {
-    if (!capturedPhoto || !canvasRef.current) return;
+    if (!capturedPhoto) return;
     
     setUploadingPhoto(true);
     setError('');
     
     try {
-      // Convert canvas directly to blob (more reliable than data URL fetch)
-      await new Promise<void>((resolve, reject) => {
-        canvasRef.current?.toBlob(async (blob) => {
-          if (!blob) {
-            reject(new Error('Failed to create image blob'));
-            return;
-          }
-          
-          try {
-            console.log('[Selfie] Original size:', (blob.size / 1024).toFixed(0), 'KB');
-            
-            // Compress
-            const compressed = await compressImage(blob, 800, 800, 0.85);
-            console.log('[Selfie] WebP compressed:', (compressed.compressedSize / 1024).toFixed(0), 'KB',
-                       `(${compressed.reductionPercent.toFixed(1)}% reduction)`);
-            
-            // Upload
-            await uploadSelfie(sessionToken, compressed.blob);
-            
-            // Stop camera completely
-            stream?.getTracks().forEach(track => track.stop());
-            setStream(null);
-            setCapturedPhoto(null);
-            setStep('permanent'); // Skip video, go straight to permanent
-            resolve();
-          } catch (err: any) {
-            reject(err);
-          }
-        }, 'image/jpeg', 0.95);
-      });
+      let blob: Blob;
+      
+      // Check if this is a file upload (blob URL) or camera capture (data URL)
+      if (capturedPhoto.startsWith('blob:')) {
+        // File upload - fetch the blob from the object URL
+        const response = await fetch(capturedPhoto);
+        blob = await response.blob();
+        console.log('[Selfie] File upload - Original size:', (blob.size / 1024).toFixed(0), 'KB');
+      } else if (canvasRef.current) {
+        // Camera capture - convert canvas to blob
+        blob = await new Promise<Blob>((resolve, reject) => {
+          canvasRef.current?.toBlob((b) => {
+            if (!b) reject(new Error('Failed to create image blob'));
+            else resolve(b);
+          }, 'image/jpeg', 0.95);
+        });
+        console.log('[Selfie] Camera capture - Original size:', (blob.size / 1024).toFixed(0), 'KB');
+      } else {
+        throw new Error('No image to upload');
+      }
+      
+      // Compress
+      const compressed = await compressImage(blob, 800, 800, 0.85);
+      console.log('[Selfie] Compressed:', (compressed.compressedSize / 1024).toFixed(0), 'KB',
+                 `(${compressed.reductionPercent.toFixed(1)}% reduction)`);
+      
+      // Upload
+      await uploadSelfie(sessionToken, compressed.blob);
+      
+      // Cleanup
+      stream?.getTracks().forEach(track => track.stop());
+      setStream(null);
+      
+      // Revoke object URL if it was a file upload
+      if (capturedPhoto.startsWith('blob:')) {
+        URL.revokeObjectURL(capturedPhoto);
+      }
+      
+      setCapturedPhoto(null);
+      setStep('permanent'); // Skip video, go straight to permanent
     } catch (err: any) {
       console.error('[Selfie] Upload error:', err);
       setError(err.message || 'Failed to upload photo');
@@ -671,6 +682,44 @@ function OnboardingPageContent() {
     setTimeout(() => {
       startCamera();
     }, 100);
+  };
+
+  // Handle file upload from gallery/files (mobile + PC compatible)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image too large (max 10MB)');
+      return;
+    }
+    
+    try {
+      // Stop camera if running
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setCapturedPhoto(previewUrl);
+      
+      console.log('[Selfie] File selected:', file.name, (file.size / 1024).toFixed(0), 'KB');
+    } catch (err: any) {
+      console.error('[Selfie] File upload error:', err);
+      setError(err.message || 'Failed to load image');
+    }
+    
+    // Reset input so same file can be selected again
+    e.target.value = '';
   };
 
   /**
@@ -1459,14 +1508,42 @@ function OnboardingPageContent() {
                       </button>
                     </div>
                   ) : (
-                    // Show capture button before taking photo
-                    <button
-                      onClick={captureSelfie}
-                      disabled={!stream}
-                      className="focus-ring w-full rounded-xl bg-[#ffc46a] px-6 py-3 font-medium text-[#0a0a0c] shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                    >
-                      📸 Capture selfie
-                    </button>
+                    // Show capture and upload buttons before taking photo
+                    <div className="space-y-3">
+                      <button
+                        onClick={captureSelfie}
+                        disabled={!stream}
+                        className="focus-ring w-full rounded-xl bg-[#ffc46a] px-6 py-3 font-medium text-[#0a0a0c] shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                      >
+                        📸 Capture selfie
+                      </button>
+                      
+                      {/* Hidden file input for gallery/files upload */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      
+                      {/* Upload from gallery/files button */}
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="focus-ring w-full rounded-xl bg-white/10 px-6 py-3 font-medium text-[#eaeaf0] hover:bg-white/20 transition-all"
+                      >
+                        📁 Upload from Photos / Files
+                      </button>
+                      
+                      {!stream && (
+                        <button
+                          onClick={startCamera}
+                          className="focus-ring w-full rounded-xl bg-white/5 px-6 py-3 font-medium text-[#eaeaf0]/70 hover:bg-white/10 transition-all text-sm"
+                        >
+                          🔄 Retry camera
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </motion.div>

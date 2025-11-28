@@ -61,13 +61,35 @@ function MainPageContent() {
   // NOTE: Call listeners are now handled by GlobalCallHandler in app/layout.tsx
   // This ensures they work across ALL pages, not just /main
 
-  // Initialize background queue once
+  // Initialize background queue - with retry for new accounts
   useEffect(() => {
-    const socket = getSocket();
-    if (socket) {
-      // CRITICAL: Always init, don't check isInitialized (might have stale socket)
-      backgroundQueue.init(socket);
-      console.log('[Main] Background queue initialized with socket');
+    const initBackgroundQueue = () => {
+      const socket = getSocket();
+      if (socket) {
+        // CRITICAL: Always init, don't check isInitialized (might have stale socket)
+        backgroundQueue.init(socket);
+        console.log('[Main] Background queue initialized with socket:', socket.id);
+        return true;
+      }
+      return false;
+    };
+    
+    // Try immediately
+    if (!initBackgroundQueue()) {
+      // For new accounts, socket might not be ready yet - retry after delay
+      console.log('[Main] Socket not ready, retrying in 500ms...');
+      const retryTimeout = setTimeout(() => {
+        if (!initBackgroundQueue()) {
+          console.log('[Main] Socket still not ready, retrying in 1s...');
+          setTimeout(() => {
+            if (!initBackgroundQueue()) {
+              console.warn('[Main] ⚠️ Could not initialize background queue - socket unavailable');
+            }
+          }, 1000);
+        }
+      }, 500);
+      
+      return () => clearTimeout(retryTimeout);
     }
     
     return () => {
