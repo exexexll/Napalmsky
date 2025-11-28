@@ -323,7 +323,7 @@ export default function RoomPage() {
         
         // Get device-appropriate timeout (60s for iOS Safari, 45s mobile, 30s desktop)
         const timeoutDuration = getConnectionTimeout();
-        const connectionTimeout = setTimeout(() => {
+        connectionTimeoutRef.current = setTimeout(() => {
           if (pc.connectionState !== 'connected') {
             console.error(`[WebRTC] Connection timeout after ${timeoutDuration/1000} seconds`);
             const errorMsg = isSafari && isMobile 
@@ -331,6 +331,7 @@ export default function RoomPage() {
               : 'Connection timeout - please check your internet connection and try again. If using VPN, try disabling it.';
             setPermissionError(errorMsg);
             setShowPermissionSheet(true);
+            setConnectionTimeout(true); // Set state to show timeout UI
           }
         }, timeoutDuration);
 
@@ -398,7 +399,6 @@ export default function RoomPage() {
           
           if (state === 'connected') {
             setConnectionPhase('connected');
-            clearTimeout(connectionTimeout);
             console.log('[WebRTC] ✓ Connection established - timer will start when remote track received');
             
             // Clear connection timeout ref
@@ -410,7 +410,12 @@ export default function RoomPage() {
           
           if (state === 'failed') {
             console.error('[WebRTC] 🔴 Connection FAILED');
-            clearTimeout(connectionTimeout);
+            
+            // Clear connection timeout
+            if (connectionTimeoutRef.current) {
+              clearTimeout(connectionTimeoutRef.current);
+              connectionTimeoutRef.current = null;
+            }
             
             // CRITICAL: Notify peer immediately (don't wait for timeout!)
             if (socketRef.current) {

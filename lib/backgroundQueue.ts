@@ -57,8 +57,23 @@ class BackgroundQueueManager {
     // Background queue only manages queue state (join/leave/sync)
     // No need for call listeners here - GlobalCallHandler persists across all pages
     
+    // Listen for queue:blocked (server rejected queue join due to incomplete profile)
+    if (this.socket) {
+      this.socket.off('queue:blocked'); // Remove existing to prevent duplicates
+      this.socket.on('queue:blocked', ({ reason }: { reason: string }) => {
+        console.warn('[BackgroundQueue] ⚠️ Queue join blocked:', reason);
+        this.inQueue = false;
+        
+        // Disable background queue if profile is incomplete
+        if (reason === 'profile_incomplete') {
+          console.log('[BackgroundQueue] Disabling background queue due to incomplete profile');
+          localStorage.setItem('bumpin_background_queue', 'false');
+        }
+      });
+    }
+    
     this.callListenersSetup = true;
-    console.log('[BackgroundQueue] Call listeners handled by GlobalCallHandler (no duplication)');
+    console.log('[BackgroundQueue] Queue state listeners setup (call listeners in GlobalCallHandler)');
   }
   
   private setupVisibilityDetection() {

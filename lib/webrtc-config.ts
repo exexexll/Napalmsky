@@ -34,27 +34,73 @@ export async function detectRestrictiveNetwork(): Promise<boolean> {
     
     return new Promise((resolve) => {
       let hasCandidate = false;
+      let resolved = false;
+      
+      const cleanup = () => {
+        if (!resolved) {
+          resolved = true;
+          try {
+            pc.close();
+          } catch {
+            // Ignore close errors
+          }
+        }
+      };
+      
       const timeout = setTimeout(() => {
-        pc.close();
+        cleanup();
         // No candidates in 2s = likely VPN/restrictive network
-        console.log('[Network] STUN test result:', hasCandidate ? 'OK' : 'BLOCKED');
-        resolve(!hasCandidate);
+        console.log('[Network] STUN test result:', hasCandidate ? 'OK (timeout)' : 'BLOCKED');
+        if (!resolved) {
+          resolved = true;
+          resolve(!hasCandidate);
+        }
       }, 2000);
       
       pc.onicecandidate = (e) => {
         if (e.candidate) {
           hasCandidate = true;
-          // Check if only relay candidates (VPN often blocks host/srflx)
+          // Check if host or srflx candidates (normal network)
           if (e.candidate.type === 'host' || e.candidate.type === 'srflx') {
             clearTimeout(timeout);
-            pc.close();
-            resolve(false); // Normal network
+            cleanup();
+            if (!resolved) {
+              resolved = true;
+              console.log('[Network] STUN test result: OK (got', e.candidate.type, 'candidate)');
+              resolve(false); // Normal network
+            }
+          }
+        } else {
+          // null candidate = gathering complete
+          clearTimeout(timeout);
+          cleanup();
+          if (!resolved) {
+            resolved = true;
+            console.log('[Network] STUN test result:', hasCandidate ? 'OK (gathering complete)' : 'BLOCKED');
+            resolve(!hasCandidate);
           }
         }
       };
       
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === 'complete' && !resolved) {
+          clearTimeout(timeout);
+          cleanup();
+          resolved = true;
+          console.log('[Network] STUN test result:', hasCandidate ? 'OK (state complete)' : 'BLOCKED');
+          resolve(!hasCandidate);
+        }
+      };
+      
       pc.createDataChannel('test');
-      pc.createOffer().then(o => pc.setLocalDescription(o));
+      pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => {
+        clearTimeout(timeout);
+        cleanup();
+        if (!resolved) {
+          resolved = true;
+          resolve(false); // Assume normal on error
+        }
+      });
     });
   } catch {
     return false; // Assume normal on error

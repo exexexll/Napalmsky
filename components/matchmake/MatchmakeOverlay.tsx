@@ -705,6 +705,14 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     // NOTE: call:start is handled by main page globally - removed from here
     // This prevents duplicate navigation when overlay is open
 
+    // Listen for queue:blocked (server rejected queue join)
+    socket.on('queue:blocked', ({ reason }: any) => {
+      console.warn('[Matchmake] ⚠️ Queue join blocked:', reason);
+      if (reason === 'profile_incomplete') {
+        setShowProfileIncompleteModal(true);
+      }
+    });
+
     // Cleanup
     return () => {
       clearInterval(refreshInterval);
@@ -725,6 +733,7 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
       socket.off('auth:success');
       socket.off('presence:update');
       socket.off('queue:update');
+      socket.off('queue:blocked');
       socket.off('location:updated');
       socket.off('location:cleared');
       // call:notify and call:start are handled by main page, not here
