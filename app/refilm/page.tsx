@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Container } from '@/components/Container';
 import { getSession } from '@/lib/session';
 import { uploadSelfie, uploadVideo, getCurrentUser } from '@/lib/api';
+import { compressImage } from '@/lib/imageCompression';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -23,8 +24,10 @@ export default function RefilmPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoFileInputRef = useRef<HTMLInputElement>(null); // For photo file upload
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [photoFromFile, setPhotoFromFile] = useState(false); // Track if photo came from file upload
 
   // Video recording
   const [isRecording, setIsRecording] = useState(false);
@@ -141,6 +144,46 @@ export default function RefilmPage() {
         }
       }, 'image/jpeg', 0.9);
     }
+  };
+
+  // Handle photo file upload from gallery/files
+  const handlePhotoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
+    }
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image too large (max 10MB)');
+      return;
+    }
+    
+    try {
+      // Stop camera if running
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setCapturedPhoto(previewUrl);
+      setPhotoFromFile(true); // Mark as file upload
+      setMode('photo'); // Switch to photo mode to show preview
+      
+      console.log('[Refilm] Photo file selected:', file.name, (file.size / 1024).toFixed(0), 'KB');
+    } catch (err: any) {
+      console.error('[Refilm] Photo file upload error:', err);
+      setError(err.message || 'Failed to load image');
+    }
+    
+    // Reset input so same file can be selected again
+    e.target.value = '';
   };
 
   const startVideoRecording = async () => {
@@ -407,17 +450,39 @@ export default function RefilmPage() {
                 Update your profile photo
               </p>
 
-              <div className="flex justify-center">
+              {/* Hidden file input for photo upload */}
+              <input
+                ref={photoFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoFileUpload}
+                className="hidden"
+              />
+
+              <div className="flex justify-center gap-4 flex-wrap max-w-2xl mx-auto">
                 <button
                   onClick={() => setMode('photo')}
-                  className="focus-ring group rounded-2xl bg-[#ffc46a]/10 border-2 border-[#ffc46a]/30 p-8 text-center shadow-inner transition-all hover:scale-105 hover:bg-[#ffc46a]/20 max-w-md w-full"
+                  className="focus-ring group rounded-2xl bg-[#ffc46a]/10 border-2 border-[#ffc46a]/30 p-6 text-center shadow-inner transition-all hover:scale-105 hover:bg-[#ffc46a]/20 flex-1 min-w-[200px]"
                 >
-                  <div className="mb-4 text-5xl">📸</div>
-                  <h3 className="mb-2 font-playfair text-xl font-bold text-[#ffc46a]">
-                    Update Photo
+                  <div className="mb-3 text-4xl">📸</div>
+                  <h3 className="mb-1 font-playfair text-lg font-bold text-[#ffc46a]">
+                    Take Photo
                   </h3>
-                  <p className="text-sm text-[#eaeaf0]/70">
-                    Camera only (no uploads)
+                  <p className="text-xs text-[#eaeaf0]/70">
+                    Use camera
+                  </p>
+                </button>
+                
+                <button
+                  onClick={() => photoFileInputRef.current?.click()}
+                  className="focus-ring group rounded-2xl bg-white/5 border-2 border-white/20 p-6 text-center shadow-inner transition-all hover:scale-105 hover:bg-white/10 flex-1 min-w-[200px]"
+                >
+                  <div className="mb-3 text-4xl">📁</div>
+                  <h3 className="mb-1 font-playfair text-lg font-bold text-[#eaeaf0]">
+                    Upload Photo
+                  </h3>
+                  <p className="text-xs text-[#eaeaf0]/70">
+                    From gallery/files
                   </p>
                 </button>
               </div>
@@ -452,15 +517,22 @@ export default function RefilmPage() {
                   <div className="flex gap-4">
                     <button
                       onClick={() => {
+                        // Revoke object URL if it was a file upload
+                        if (photoFromFile && capturedPhoto?.startsWith('blob:')) {
+                          URL.revokeObjectURL(capturedPhoto);
+                        }
                         setCapturedPhoto(null);
+                        setPhotoFromFile(false);
                         setError('');
-                        // Restart camera
-                        startCamera();
+                        // Restart camera if not from file
+                        if (!photoFromFile) {
+                          startCamera();
+                        }
                       }}
                       disabled={uploading}
                       className="focus-ring flex-1 rounded-xl bg-white/10 px-6 py-3 font-medium text-[#eaeaf0] transition-all hover:bg-white/20 disabled:opacity-50"
                     >
-                      Retake
+                      {photoFromFile ? 'Choose Different' : 'Retake'}
                     </button>
                     <button
                       onClick={async () => {
@@ -476,25 +548,45 @@ export default function RefilmPage() {
                             return;
                           }
                           
-                          // Convert data URL to blob (CSP-safe method)
-                          const base64Data = capturedPhoto.split(',')[1];
-                          const byteCharacters = atob(base64Data);
-                          const byteNumbers = new Array(byteCharacters.length);
-                          for (let i = 0; i < byteCharacters.length; i++) {
-                            byteNumbers[i] = byteCharacters.charCodeAt(i);
-                          }
-                          const byteArray = new Uint8Array(byteNumbers);
-                          const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                          let blob: Blob;
                           
-                          console.log('[Refilm] Converting data URL to blob, size:', blob.size);
+                          // Handle both file uploads (blob URL) and camera captures (data URL)
+                          if (photoFromFile && capturedPhoto.startsWith('blob:')) {
+                            // File upload - fetch the blob from the object URL
+                            const response = await fetch(capturedPhoto);
+                            blob = await response.blob();
+                            console.log('[Refilm] File upload - Original size:', (blob.size / 1024).toFixed(0), 'KB');
+                          } else {
+                            // Camera capture - convert data URL to blob (CSP-safe method)
+                            const base64Data = capturedPhoto.split(',')[1];
+                            const byteCharacters = atob(base64Data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                              byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            blob = new Blob([byteArray], { type: 'image/jpeg' });
+                            console.log('[Refilm] Camera capture - Original size:', (blob.size / 1024).toFixed(0), 'KB');
+                          }
+                          
+                          // Compress the image
+                          const compressed = await compressImage(blob, 800, 800, 0.85);
+                          console.log('[Refilm] Compressed:', (compressed.compressedSize / 1024).toFixed(0), 'KB',
+                                     `(${compressed.reductionPercent.toFixed(1)}% reduction)`);
                           
                           // Upload
-                          await uploadSelfie(session.sessionToken, blob);
+                          await uploadSelfie(session.sessionToken, compressed.blob);
                           
                           console.log('[Refilm] ✅ Photo uploaded successfully');
                           
+                          // Revoke object URL if it was a file upload
+                          if (photoFromFile && capturedPhoto.startsWith('blob:')) {
+                            URL.revokeObjectURL(capturedPhoto);
+                          }
+                          
                           // Clear state
                           setCapturedPhoto(null);
+                          setPhotoFromFile(false);
                           setMode('select');
                           setSuccess('Photo updated successfully!');
                           setTimeout(() => setSuccess(''), 3000);
@@ -536,44 +628,64 @@ export default function RefilmPage() {
                     </div>
                   )}
 
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => {
-                        stream?.getTracks().forEach(track => track.stop());
-                        setMode('select');
-                      }}
-                      className="focus-ring flex-1 rounded-xl bg-white/10 px-6 py-3 font-medium text-[#eaeaf0] transition-all hover:bg-white/20"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        // Capture to preview first (mirrored)
-                        if (!canvasRef.current || !videoRef.current) return;
-                        const canvas = canvasRef.current;
-                        const video = videoRef.current;
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        const ctx = canvas.getContext('2d');
-                        if (ctx) {
-                          // Mirror the preview to match live camera
-                          ctx.save();
-                          ctx.scale(-1, 1);
-                          ctx.drawImage(video, -canvas.width, 0);
-                          ctx.restore();
-                          
-                          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                          setCapturedPhoto(dataUrl);
-                          // Stop camera after capture
+                  <div className="space-y-3">
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => {
                           stream?.getTracks().forEach(track => track.stop());
-                          setStream(null);
-                        }
-                      }}
-                      disabled={!stream}
-                      className="focus-ring flex-1 rounded-xl bg-[#ffc46a] px-6 py-3 font-medium text-[#0a0a0c] shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                          setMode('select');
+                        }}
+                        className="focus-ring flex-1 rounded-xl bg-white/10 px-6 py-3 font-medium text-[#eaeaf0] transition-all hover:bg-white/20"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          // Capture to preview first (mirrored)
+                          if (!canvasRef.current || !videoRef.current) return;
+                          const canvas = canvasRef.current;
+                          const video = videoRef.current;
+                          canvas.width = video.videoWidth;
+                          canvas.height = video.videoHeight;
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                            // Mirror the preview to match live camera
+                            ctx.save();
+                            ctx.scale(-1, 1);
+                            ctx.drawImage(video, -canvas.width, 0);
+                            ctx.restore();
+                            
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                            setCapturedPhoto(dataUrl);
+                            setPhotoFromFile(false); // Mark as camera capture
+                            // Stop camera after capture
+                            stream?.getTracks().forEach(track => track.stop());
+                            setStream(null);
+                          }
+                        }}
+                        disabled={!stream}
+                        className="focus-ring flex-1 rounded-xl bg-[#ffc46a] px-6 py-3 font-medium text-[#0a0a0c] shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                      >
+                        Capture Photo
+                      </button>
+                    </div>
+                    
+                    {/* Upload from files option */}
+                    <button
+                      onClick={() => photoFileInputRef.current?.click()}
+                      className="focus-ring w-full rounded-xl bg-white/5 px-6 py-2.5 text-sm font-medium text-[#eaeaf0]/70 hover:bg-white/10 transition-all"
                     >
-                      Capture Photo
+                      📁 Or upload from Photos / Files
                     </button>
+                    
+                    {!stream && (
+                      <button
+                        onClick={startCamera}
+                        className="focus-ring w-full rounded-xl bg-white/5 px-6 py-2.5 text-sm font-medium text-[#eaeaf0]/70 hover:bg-white/10 transition-all"
+                      >
+                        🔄 Retry camera
+                      </button>
+                    )}
                   </div>
                 </>
               )}
