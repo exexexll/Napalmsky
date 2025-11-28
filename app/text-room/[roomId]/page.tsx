@@ -120,13 +120,31 @@ export default function TextChatRoom() {
     // CRITICAL: Handle tab visibility (pause timers when hidden to prevent freeze)
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        console.log('[TextRoom] Tab hidden - timers may slow down');
-        // Note: Socket.io will maintain connection, timers continue but may lag
+        console.log('[TextRoom] Tab hidden - notifying server');
+        // Notify server that user is "away" (tab hidden)
+        if (socketRef.current && socketRef.current.connected) {
+          socketRef.current.emit('textchat:visibility', { roomId, visible: false });
+        }
       } else {
-        console.log('[TextRoom] Tab visible again - timers resuming');
+        console.log('[TextRoom] Tab visible again - syncing state');
         // Force sync state with server when tab becomes visible
         if (socketRef.current && socketRef.current.connected) {
+          // Notify server that user is "looking" (tab visible)
+          socketRef.current.emit('textchat:visibility', { roomId, visible: true });
+          // Also sync full state (messages, inactivity, etc.)
           socketRef.current.emit('textchat:sync-state', { roomId });
+          
+          // CRITICAL: Reload message history to catch any missed messages
+          socketRef.current.emit('textchat:get-history', { roomId }, (response: any) => {
+            if (response.success && response.messages) {
+              console.log(`[TextRoom] Reloaded ${response.messages.length} messages after visibility change`);
+              setMessages(response.messages.map((m: any) => ({
+                ...m,
+                timestamp: new Date(m.sent_at),
+                readAt: m.read_at ? new Date(m.read_at) : undefined,
+              })));
+            }
+          });
         }
       }
     };
@@ -533,6 +551,7 @@ export default function TextChatRoom() {
   }, [roomId, agreedSeconds, peerUserId, peerName, router]);
 
   // CRITICAL FIX: Send heartbeat from text room to prevent being marked offline
+  // Also periodically sync visibility status to keep partner status accurate
   useEffect(() => {
     if (!socketRef.current) return;
     
@@ -540,12 +559,21 @@ export default function TextChatRoom() {
     const heartbeatInterval = setInterval(() => {
       if (socketRef.current?.connected) {
         socketRef.current.emit('heartbeat', { timestamp: Date.now() });
-        console.log('[TextRoom] 💓 Heartbeat sent (keep online during chat)');
+        
+        // Also sync visibility status (in case it got out of sync)
+        if (!document.hidden) {
+          socketRef.current.emit('textchat:visibility', { roomId, visible: true });
+        }
       }
     }, 20000);
     
+    // Send initial visibility status
+    if (socketRef.current?.connected && !document.hidden) {
+      socketRef.current.emit('textchat:visibility', { roomId, visible: true });
+    }
+    
     return () => clearInterval(heartbeatInterval);
-  }, []);
+  }, [roomId]);
 
   useEffect(() => {
     let elapsed = 0;

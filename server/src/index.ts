@@ -1530,6 +1530,30 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('textchat:typing', { userId: currentUserId });
   });
 
+  // TEXT CHAT: Visibility change (tab visible/hidden)
+  socket.on('textchat:visibility', async ({ roomId, visible }) => {
+    if (!currentUserId) return;
+    
+    const room = activeRooms.get(roomId);
+    if (!room) return;
+    
+    if (room.user1 !== currentUserId && room.user2 !== currentUserId) return;
+    
+    const status = visible ? 'active' : 'away';
+    console.log(`[TextChat] User ${currentUserId.substring(0, 8)} visibility: ${status}`);
+    
+    // Notify partner of visibility change
+    const partnerId = room.user1 === currentUserId ? room.user2 : room.user1;
+    const partnerSocket = activeSockets.get(partnerId);
+    if (partnerSocket) {
+      io.to(partnerSocket).emit('textchat:partner-status', { 
+        userId: currentUserId,
+        status,
+        lastSeen: Date.now()
+      });
+    }
+  });
+
   // TEXT CHAT: Sync state (for reconnection/backgrounding)
   socket.on('textchat:sync-state', async ({ roomId }) => {
     if (!currentUserId) return;
@@ -1557,7 +1581,7 @@ io.on('connection', (socket) => {
       socket.emit('textroom:inactivity-cleared');
     }
     
-    // Notify partner we're back
+    // Notify partner we're back (active)
     const partnerId = room.user1 === currentUserId ? room.user2 : room.user1;
     const partnerSocket = activeSockets.get(partnerId);
     if (partnerSocket) {
