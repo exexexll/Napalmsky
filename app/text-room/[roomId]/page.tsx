@@ -126,9 +126,72 @@ export default function TextChatRoom() {
           socketRef.current.emit('textchat:visibility', { roomId, visible: false });
         }
       } else {
-        console.log('[TextRoom] Tab visible again - syncing state');
-        // Force sync state with server when tab becomes visible
-        if (socketRef.current && socketRef.current.connected) {
+        console.log('[TextRoom] Tab visible again - checking connection...');
+        
+        // CRITICAL: Check if socket is disconnected and needs reconnection
+        if (!socketRef.current || !socketRef.current.connected) {
+          console.log('[TextRoom] Socket disconnected while tab was hidden - reconnecting...');
+          setIsOnline(false);
+          
+          // Get session and reconnect
+          const session = getSession();
+          if (session) {
+            // Force reconnect the socket
+            const newSocket = connectSocket(session.sessionToken);
+            socketRef.current = newSocket;
+            
+            // Wait for connection then rejoin room
+            const onConnect = () => {
+              console.log('[TextRoom] ✅ Socket reconnected after visibility change');
+              setIsOnline(true);
+              
+              // Rejoin room
+              newSocket.emit('room:join', { roomId });
+              
+              // Notify server that user is "looking" (tab visible)
+              newSocket.emit('textchat:visibility', { roomId, visible: true });
+              
+              // Sync full state
+              newSocket.emit('textchat:sync-state', { roomId });
+              
+              // Reload message history
+              newSocket.emit('textchat:get-history', { roomId }, (response: any) => {
+                if (response.success && response.messages) {
+                  console.log(`[TextRoom] Reloaded ${response.messages.length} messages after reconnect`);
+                  setMessages(response.messages.map((m: any) => ({
+                    ...m,
+                    timestamp: new Date(m.sent_at),
+                    readAt: m.read_at ? new Date(m.read_at) : undefined,
+                  })));
+                }
+              });
+              
+              // Flush message queue if any
+              if (messageQueueRef.current.length > 0) {
+                console.log(`[TextRoom] Flushing ${messageQueueRef.current.length} queued messages`);
+                messageQueueRef.current.forEach(msg => {
+                  newSocket.emit('textchat:send', msg);
+                });
+                messageQueueRef.current = [];
+                setQueuedMessageCount(0);
+              }
+              
+              // Remove this one-time listener
+              newSocket.off('connect', onConnect);
+            };
+            
+            // If already connected, run immediately
+            if (newSocket.connected) {
+              onConnect();
+            } else {
+              newSocket.on('connect', onConnect);
+            }
+          }
+        } else {
+          // Socket is still connected - just sync state
+          console.log('[TextRoom] Socket still connected - syncing state');
+          setIsOnline(true);
+          
           // Notify server that user is "looking" (tab visible)
           socketRef.current.emit('textchat:visibility', { roomId, visible: true });
           // Also sync full state (messages, inactivity, etc.)
