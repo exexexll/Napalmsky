@@ -90,8 +90,7 @@ export default function TextChatRoom() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const disconnectCountdownRef = useRef<NodeJS.Timeout | null>(null); // CRITICAL: Track disconnect countdown
-  const partnerDisconnectCountdownRef = useRef<NodeJS.Timeout | null>(null); // CRITICAL: Track partner disconnect countdown
+  const partnerDisconnectCountdownRef = useRef<NodeJS.Timeout | null>(null); // Track partner disconnect countdown
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   // Link interceptor - open external links in floating browser
@@ -225,12 +224,6 @@ export default function TextChatRoom() {
       console.log('[TextRoom] ✅ Socket reconnected - rejoining room');
       setShowReconnecting(false);
       setIsOnline(true);
-      
-      // CRITICAL FIX: Clear disconnect countdown when reconnected
-      if (disconnectCountdownRef.current) {
-        clearInterval(disconnectCountdownRef.current);
-        disconnectCountdownRef.current = null;
-      }
       
       // Re-auth first
       const session = getSession();
@@ -380,32 +373,15 @@ export default function TextChatRoom() {
       typingTimeoutRef.current = timeout;
     });
     
-    // BEST-IN-CLASS: Offline detection with countdown
+    // TEXT MODE: Graceful offline detection (no intrusive UI)
+    // Text rooms use Torch Rule on server - client just shows subtle "offline" indicator
     socket.on('disconnect', (reason) => {
       console.log('[TextRoom] Socket disconnected:', reason);
-      setShowReconnecting(true);
-      setReconnectCountdown(10);
-      setIsOnline(false); // Mark as offline
+      setIsOnline(false); // Mark as offline - shows subtle indicator in header
       
-      // CRITICAL FIX: Clear existing countdown to prevent duplicates
-      if (disconnectCountdownRef.current) {
-        clearInterval(disconnectCountdownRef.current);
-      }
-      
-      // Start countdown
-      const interval = setInterval(() => {
-        setReconnectCountdown((prev: number) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            disconnectCountdownRef.current = null;
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      // Store interval ref for cleanup
-      disconnectCountdownRef.current = interval;
+      // Don't show intrusive reconnecting modal for text rooms
+      // Socket.io will auto-reconnect, and server keeps room alive via Torch Rule
+      // The partnerStatus will show 'away' if partner disconnects
     });
 
     // Load message history
@@ -520,7 +496,6 @@ export default function TextChatRoom() {
       // CRITICAL FIX: Cleanup ALL timers to prevent memory leaks
       if (timerRef.current) clearInterval(timerRef.current);
       if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
-      if (disconnectCountdownRef.current) clearInterval(disconnectCountdownRef.current);
       if (partnerDisconnectCountdownRef.current) clearInterval(partnerDisconnectCountdownRef.current);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       
