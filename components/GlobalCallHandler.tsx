@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { getSession } from '@/lib/session';
@@ -14,6 +14,52 @@ import { CalleeNotification } from '@/components/matchmake/CalleeNotification';
 export function GlobalCallHandler() {
   const router = useRouter();
   const [incomingInvite, setIncomingInvite] = useState<any>(null);
+  const socketRef = useRef<any>(null);
+  const listenersSetupRef = useRef(false);
+
+  // Setup listeners on a socket - reusable for initial setup and reconnection
+  const setupListeners = useCallback((socket: any) => {
+    if (!socket) return;
+    
+    console.log('[GlobalCallHandler] Setting up listeners on socket:', socket.id);
+    
+    // Listener 1: Incoming call notification
+    const handleCallNotify = (data: any) => {
+      console.log('[GlobalCallHandler] ✅ INCOMING CALL:', data);
+      console.log('[GlobalCallHandler] From:', data.fromUser?.name);
+      console.log('[GlobalCallHandler] Current page:', window.location.pathname);
+      setIncomingInvite(data);
+    };
+
+    // Listener 2: Call starting (both users accepted)
+    const handleCallStart = ({ roomId, agreedSeconds, isInitiator, chatMode, peerUser }: any) => {
+      console.log('[GlobalCallHandler] ✅ CALL STARTING:', { roomId, agreedSeconds, chatMode });
+      console.log('[GlobalCallHandler] Navigating to room from:', window.location.pathname);
+
+      const mode = chatMode || 'video';
+
+      // Navigate to appropriate room
+      if (mode === 'text') {
+        router.push(
+          `/text-room/${roomId}?duration=${agreedSeconds}&peerId=${peerUser.userId}&peerName=${encodeURIComponent(peerUser.name)}&peerSelfie=${encodeURIComponent(peerUser.selfieUrl || '')}`
+        );
+      } else {
+        router.push(
+          `/room/${roomId}?duration=${agreedSeconds}&peerId=${peerUser.userId}&peerName=${encodeURIComponent(peerUser.name)}&initiator=${isInitiator}`
+        );
+      }
+    };
+
+    // Remove existing listeners to prevent duplicates
+    socket.off('call:notify'); 
+    socket.off('call:start'); 
+    
+    // Add fresh listeners
+    socket.on('call:notify', handleCallNotify);
+    socket.on('call:start', handleCallStart);
+    
+    console.log('[GlobalCallHandler] ✅ Listeners attached to socket:', socket.id);
+  }, [router]);
 
   // CRITICAL: Setup global socket listeners that persist across all pages
   useEffect(() => {
@@ -43,59 +89,39 @@ export function GlobalCallHandler() {
       return;
     }
 
-    console.log('[GlobalCallHandler] Socket obtained, waiting for connection...');
+    socketRef.current = socket;
+    console.log('[GlobalCallHandler] Socket obtained:', socket.id);
 
-    // Listener 1: Incoming call notification
-    const handleCallNotify = (data: any) => {
-      console.log('[GlobalCallHandler] ✅ INCOMING CALL:', data);
-      console.log('[GlobalCallHandler] From:', data.fromUser?.name);
-      console.log('[GlobalCallHandler] Current page:', window.location.pathname);
-      setIncomingInvite(data);
-    };
-
-    // Listener 2: Call starting (both users accepted)
-    const handleCallStart = ({ roomId, agreedSeconds, isInitiator, chatMode, peerUser }: any) => {
-      console.log('[GlobalCallHandler] ✅ CALL STARTING:', { roomId, agreedSeconds, chatMode });
-      console.log('[GlobalCallHandler] Navigating to room from:', window.location.pathname);
-
-      const mode = chatMode || 'video';
-
-      // Navigate to appropriate room
-      if (mode === 'text') {
-        router.push(
-          `/text-room/${roomId}?duration=${agreedSeconds}&peerId=${peerUser.userId}&peerName=${encodeURIComponent(peerUser.name)}&peerSelfie=${encodeURIComponent(peerUser.selfieUrl || '')}`
-        );
-      } else {
-        router.push(
-          `/room/${roomId}?duration=${agreedSeconds}&peerId=${peerUser.userId}&peerName=${encodeURIComponent(peerUser.name)}&initiator=${isInitiator}`
-        );
+    // Setup listeners immediately
+    setupListeners(socket);
+    listenersSetupRef.current = true;
+    
+    // Listen for connect event (fires on initial connect AND reconnects)
+    socket.on('connect', () => {
+      console.log('[GlobalCallHandler] Socket connected/reconnected:', socket?.id);
+      // Re-setup listeners in case socket was recreated
+      if (listenersSetupRef.current) {
+        const currentSocket = getSocket();
+        if (currentSocket && currentSocket !== socketRef.current) {
+          console.log('[GlobalCallHandler] Socket changed, re-attaching listeners...');
+          socketRef.current = currentSocket;
+          setupListeners(currentSocket);
+          backgroundQueue.init(currentSocket);
+        }
       }
-    };
-
-    // Setup listeners immediately (socket might connect later)
-    // CRITICAL: Only remove/add if not already set up to avoid breaking active listeners
-    // We remove ALL listeners for these events to prevent duplicates if component re-mounts
-    // GlobalCallHandler is the SINGLE source of truth for these events
-    if (socket) {
-      socket.off('call:notify'); 
-      socket.off('call:start'); 
-      socket.on('call:notify', handleCallNotify);
-      socket.on('call:start', handleCallStart);
-    }
+    });
     
     // CRITICAL: ALWAYS initialize background queue with socket
-    // Even if already initialized, update socket reference (might be new after reconnect)
     backgroundQueue.init(socket);
-    console.log('[GlobalCallHandler] Background queue initialized/updated with socket:', socket.id);
+    console.log('[GlobalCallHandler] Background queue initialized with socket:', socket.id);
 
     return () => {
       // CRITICAL: Don't remove listeners on unmount!
       // GlobalCallHandler should never unmount, but if it does,
       // keep listeners active for background queue to work
       console.log('[GlobalCallHandler] Cleanup called but keeping listeners active');
-      // DON'T do: socket.off('call:notify') or socket.off('call:start')
     };
-  }, []); // Empty deps - set up once, never tear down
+  }, [setupListeners]); // setupListeners is stable due to useCallback
 
   return (
     <>

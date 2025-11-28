@@ -56,9 +56,18 @@ export function connectSocket(sessionToken: string): Socket {
     }
     
     // Truly disconnected - clean up
-    console.log('[Socket] Cleaning up truly disconnected socket');
+    // CRITICAL: Don't use removeAllListeners() - it removes call:notify/call:start
+    // which are set up by GlobalCallHandler and need to persist
+    console.log('[Socket] Cleaning up truly disconnected socket (preserving global listeners)');
     try {
-      socket.removeAllListeners();
+      // Only remove socket.io internal listeners, not our app listeners
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
+      socket.off('reconnect_attempt');
+      socket.off('reconnect_failed');
+      socket.off('auth:success');
+      socket.off('auth:failed');
       socket.close();
     } catch (e) {
       console.error('[Socket] Error cleaning up socket:', e);
