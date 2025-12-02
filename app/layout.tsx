@@ -40,10 +40,16 @@ export const metadata: Metadata = {
   description: 'Make Friends in SoCal— Live Matches, Zero Waiting, Infinite Possibilites.',
   keywords: ['1-1 video social network', 'video chat', 'matchmaking', 'social networking', 'live video'],
   authors: [{ name: 'BUMPIN' }],
+  manifest: '/manifest.json',
   icons: {
     icon: '/Love.png',
     apple: '/Love.png',
     shortcut: '/Love.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'BUMPIN',
   },
   openGraph: {
     title: 'BUMPIN - The Social "Intro" Network for USC Students',

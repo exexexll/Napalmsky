@@ -1,0 +1,35 @@
+{
+  "name": "BUMPIN",
+  "short_name": "BUMPIN",
+  "description": "The Social Intro Network - Make Friends, Live Matches, Zero Waiting",
+  "start_url": "/main",
+  "display": "standalone",
+  "background_color": "#0a0a0c",
+  "theme_color": "#ffc46a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/Love.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Love.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "permissions": [
+    "geolocation",
+    "camera",
+    "microphone"
+  ],
+  "categories": ["social", "lifestyle"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false
+}
+
