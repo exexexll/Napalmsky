@@ -318,23 +318,31 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
   }, [isOpen, isInactive]);
 
   // Ask for location permission (once per session)
-  const askForLocation = useCallback(async () => {
+  // Returns true if location modal was shown (caller should wait for user response)
+  // Returns false if we can proceed immediately
+  const askForLocation = useCallback(async (): Promise<boolean> => {
     const session = getSession();
-    if (!session || locationAsked) return;
+    if (!session || locationAsked) return false;
     
     // Check if user previously granted location
     const hasLocationConsent = localStorage.getItem('bumpin_location_consent');
     
     if (hasLocationConsent === 'true') {
-      // Auto-update location
+      // Auto-update location (don't block on this)
       console.log('[Location] User previously consented, updating...');
-      await requestAndUpdateLocation(session.sessionToken);
+      requestAndUpdateLocation(session.sessionToken).catch(() => {
+        console.warn('[Location] Failed to update location, continuing anyway');
+      });
       setLocationAsked(true);
+      return false;
     } else if (hasLocationConsent === null) {
       // First time: Ask for permission
       setShowLocationModal(true);
+      return true; // Caller should wait for modal response
     }
     // If 'false', user declined before, don't ask again
+    setLocationAsked(true);
+    return false;
   }, [locationAsked]);
 
   // Load initial queue (no shuffling, consistent order)
@@ -343,7 +351,12 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     if (!session || loading) return;
 
     // Ask for location permission before loading queue
-    await askForLocation();
+    // If modal is shown, wait for user response (modal handlers will call loadInitialQueue)
+    const modalShown = await askForLocation();
+    if (modalShown) {
+      console.log('[Matchmake] Location modal shown, waiting for user response...');
+      return; // Don't load queue yet - modal handlers will call loadInitialQueue
+    }
 
     setLoading(true);
     try {
@@ -1052,11 +1065,13 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     if (success) {
       localStorage.setItem('bumpin_location_consent', 'true');
       showToast('Location enabled - showing nearby people first', 'info');
-      loadInitialQueue();
     } else {
-      showToast('Location permission denied', 'error');
+      showToast('Location unavailable - browsing without distance sorting', 'info');
       localStorage.setItem('bumpin_location_consent', 'false');
     }
+    // ALWAYS load queue, even if location failed
+    // Users can still browse without distance sorting
+    loadInitialQueue();
   }, [showToast, loadInitialQueue]);
 
   // Handle location permission deny
@@ -1064,7 +1079,10 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     setShowLocationModal(false);
     setLocationAsked(true);
     localStorage.setItem('bumpin_location_consent', 'false');
-  }, []);
+    // CRITICAL: Still load the queue even without location!
+    // Users can browse without distance sorting
+    loadInitialQueue();
+  }, [loadInitialQueue]);
 
   // Handle mode selection and start browsing
   const handleStartBrowsing = () => {

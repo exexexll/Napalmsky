@@ -78,8 +78,9 @@ export function LocationPermissionModal({ onAllow, onDeny }: LocationPermissionM
             💡 <strong>If browser blocks permission:</strong>
           </p>
           <p className="text-xs text-blue-200/80 text-center mt-1">
-            iOS: Settings → Safari/Chrome → Location<br/>
-            Android: Settings → Apps → Chrome → Permissions
+            iOS Safari: Settings → Privacy → Location Services → Safari<br/>
+            macOS Safari: Safari menu → Settings for This Website → Location<br/>
+            Chrome: Settings → Site Settings → Location
           </p>
         </div>
       </motion.div>

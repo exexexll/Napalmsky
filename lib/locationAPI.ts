@@ -12,6 +12,7 @@ const LOCATION_TIMESTAMP_KEY = 'bumpin_location_last_update';
 
 /**
  * Request browser location permission and update on server
+ * Safari-compatible with extended timeout and better error handling
  */
 export async function requestAndUpdateLocation(sessionToken: string): Promise<boolean> {
   // CLIENT-SIDE RATE LIMIT CHECK: Prevent 429 errors
@@ -26,11 +27,34 @@ export async function requestAndUpdateLocation(sessionToken: string): Promise<bo
     return true; // Return TRUE to not show error - location is still valid
   }
   
+  // Detect Safari for special handling
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
+  if (isSafari || isIOS) {
+    console.log('[Location] 🍎 Safari/iOS detected - using extended timeout');
+  }
+  
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
       console.error('[Location] Geolocation not supported');
       resolve(false);
       return;
+    }
+    
+    // Check if geolocation permission is available (Safari compatibility)
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName }).then((result) => {
+        console.log('[Location] Permission state:', result.state);
+        if (result.state === 'denied') {
+          console.error('[Location] Permission denied by browser settings');
+          resolve(false);
+          return;
+        }
+      }).catch(() => {
+        // Safari doesn't support permissions.query for geolocation, continue anyway
+        console.log('[Location] permissions.query not supported, proceeding...');
+      });
     }
     
     navigator.geolocation.getCurrentPosition(
@@ -91,18 +115,22 @@ export async function requestAndUpdateLocation(sessionToken: string): Promise<bo
           userAgent: navigator.userAgent.substring(0, 50)
         });
         
-        // For mobile, show helpful instructions
-        if (/iPhone|iPad|Android/i.test(navigator.userAgent) && error.code === 1) {
-          console.log('[Location] 📱 Mobile permission denied - user needs to check settings');
-          console.log('[Location] iOS: Settings → Safari/Chrome → Location → Allow');
-          console.log('[Location] Android: Settings → Apps → Chrome → Permissions → Location → Allow');
+        // For Safari/iOS, provide specific instructions
+        if ((isSafari || isIOS) && error.code === 1) {
+          console.log('[Location] 🍎 Safari/iOS permission denied');
+          console.log('[Location] iOS: Settings → Privacy → Location Services → Safari → While Using');
+          console.log('[Location] macOS Safari: Safari → Settings for This Website → Location → Allow');
+        } else if (/Android/i.test(navigator.userAgent) && error.code === 1) {
+          console.log('[Location] 📱 Android permission denied');
+          console.log('[Location] Settings → Apps → Chrome → Permissions → Location → Allow');
         }
         
         resolve(false);
       },
       {
         enableHighAccuracy: false, // Battery-friendly
-        timeout: 10000,
+        // Safari on iOS needs longer timeout
+        timeout: isSafari || isIOS ? 15000 : 10000,
         maximumAge: 300000, // 5 min cache OK
       }
     );

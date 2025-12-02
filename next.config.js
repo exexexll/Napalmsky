@@ -41,7 +41,9 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=*, microphone=*, geolocation=*'
+            // Safari requires explicit (self) or () syntax, not *
+            // Using (self) allows the same origin to use these features
+            value: 'camera=(self), microphone=(self), geolocation=(self)'
           },
           // Content Security Policy
           {
