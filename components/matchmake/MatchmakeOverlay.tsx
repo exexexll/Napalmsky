@@ -10,7 +10,7 @@ import { UserCard } from './UserCard';
 import { CalleeNotification } from './CalleeNotification';
 import { LocationPermissionModal } from '@/components/LocationPermissionModal';
 import { VideoProgressBar } from './VideoProgressBar';
-import { requestAndUpdateLocation } from '@/lib/locationAPI';
+import { requestAndUpdateLocation, requestAndUpdateLocationDetailed, wasLocationBlockedByBrowser } from '@/lib/locationAPI';
 import { backgroundQueue } from '@/lib/backgroundQueue';
 // FloatingBrowser removed - social links now open directly
 
@@ -1061,10 +1061,14 @@ export function MatchmakeOverlay({ isOpen, onClose, directMatchTarget }: Matchma
     setShowLocationModal(false);
     setLocationAsked(true);
     
-    const success = await requestAndUpdateLocation(session.sessionToken);
-    if (success) {
+    const result = await requestAndUpdateLocationDetailed(session.sessionToken);
+    if (result.success) {
       localStorage.setItem('bumpin_location_consent', 'true');
       showToast('Location enabled - showing nearby people first', 'info');
+    } else if (result.blockedByBrowser) {
+      // Browser blocked - show specific message but still load queue
+      showToast('Location blocked by browser settings. You can still browse!', 'info');
+      localStorage.setItem('bumpin_location_consent', 'false');
     } else {
       showToast('Location unavailable - browsing without distance sorting', 'info');
       localStorage.setItem('bumpin_location_consent', 'false');

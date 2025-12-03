@@ -85,17 +85,74 @@ export default function RefilmPage() {
   }, [router]);
 
   const startCamera = async () => {
+    // Check camera permission state first (Chrome/Firefox)
+    let permissionBlocked = false;
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        console.log('[Refilm] Camera permission state:', result.state);
+        if (result.state === 'denied') {
+          permissionBlocked = true;
+        }
+      } catch {
+        // Safari doesn't support this, continue
+      }
+    }
+    
+    if (permissionBlocked) {
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
+      let instructions = '';
+      if (isIOS) {
+        instructions = 'Go to Settings → Privacy & Security → Camera → Safari, enable access.';
+      } else if (isAndroid) {
+        instructions = 'Go to Settings → Apps → Chrome → Permissions → Camera → Allow.';
+      } else if (isSafari) {
+        instructions = 'Click Safari → Settings for This Website → Camera → Allow.';
+      } else {
+        instructions = 'Click the lock icon in the address bar → Site settings → Camera → Allow.';
+      }
+      
+      setError(`Camera blocked by browser. ${instructions} Then refresh.`);
+      return;
+    }
+    
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' }, // Front camera for selfies
         audio: false,
       });
       setStream(mediaStream);
+      setError(''); // Clear any previous error
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (err) {
-      setError('Camera access denied');
+    } catch (err: any) {
+      console.error('[Refilm] Camera error:', err);
+      
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
+      if (err.name === 'NotAllowedError') {
+        let instructions = '';
+        if (isIOS) {
+          instructions = ' Go to Settings → Privacy → Camera → Safari to enable.';
+        } else if (isAndroid) {
+          instructions = ' Go to Settings → Apps → Chrome → Permissions → Camera.';
+        } else if (isSafari) {
+          instructions = ' Click Safari → Settings for This Website → Camera → Allow.';
+        } else {
+          instructions = ' Click the lock icon → Site settings → Camera → Allow.';
+        }
+        setError('Camera access denied.' + instructions + ' Or use "Upload Photo" below.');
+      } else if (err.name === 'NotFoundError') {
+        setError('No camera found. Use "Upload Photo" to select from gallery.');
+      } else {
+        setError('Camera error. Use "Upload Photo" to select from gallery.');
+      }
     }
   };
 

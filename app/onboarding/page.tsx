@@ -564,8 +564,44 @@ function OnboardingPageContent() {
 
   /**
    * Step 2: Selfie - Camera ONLY
+   * Includes Chrome mobile permission check and browser-specific error handling
    */
   const startCamera = async () => {
+    // Check camera permission state first (Chrome/Firefox)
+    let permissionBlocked = false;
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        const result = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        console.log('[Onboarding] Camera permission state:', result.state);
+        if (result.state === 'denied') {
+          permissionBlocked = true;
+        }
+      } catch {
+        // Safari doesn't support this, continue
+      }
+    }
+    
+    if (permissionBlocked) {
+      // Browser has blocked camera - show specific instructions
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
+      let instructions = '';
+      if (isIOS) {
+        instructions = 'Go to Settings → Privacy & Security → Camera → Safari, then enable access.';
+      } else if (isAndroid) {
+        instructions = 'Go to Settings → Apps → Chrome → Permissions → Camera → Allow.';
+      } else if (isSafari) {
+        instructions = 'Click Safari → Settings for This Website → Camera → Allow.';
+      } else {
+        instructions = 'Click the lock icon in the address bar → Site settings → Camera → Allow.';
+      }
+      
+      setError(`Camera is blocked by your browser. ${instructions} Then refresh this page.`);
+      return;
+    }
+    
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
@@ -577,17 +613,36 @@ function OnboardingPageContent() {
         audio: false,
       });
       setStream(mediaStream);
+      setError(''); // Clear any previous error
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err: any) {
       console.error('[Onboarding] Camera error:', err);
+      
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
       if (err.name === 'NotAllowedError') {
-        setError('Camera access denied. Please allow camera permission in your browser settings, then click "Start camera" again.');
+        // Permission denied - give browser-specific instructions
+        let instructions = '';
+        if (isIOS) {
+          instructions = '\n\nTo fix: Go to Settings → Privacy & Security → Camera → Safari, enable access, then refresh.';
+        } else if (isAndroid) {
+          instructions = '\n\nTo fix: Go to Settings → Apps → Chrome → Permissions → Camera → Allow, then refresh.';
+        } else if (isSafari) {
+          instructions = '\n\nTo fix: Click Safari → Settings for This Website → Camera → Allow, then refresh.';
+        } else {
+          instructions = '\n\nTo fix: Click the lock icon in the address bar → Site settings → Camera → Allow, then refresh.';
+        }
+        setError('Camera access denied.' + instructions + '\n\nOr use the "Upload Photo" button below to select from your gallery.');
       } else if (err.name === 'NotFoundError') {
-        setError('No camera found. Please connect a camera and try again.');
+        setError('No camera found. Please use the "Upload Photo" button below to select an image from your gallery.');
+      } else if (err.name === 'NotReadableError') {
+        setError('Camera is in use by another app. Close other apps using the camera and try again, or use "Upload Photo" below.');
       } else {
-        setError('Camera error: ' + (err.message || 'Unable to access camera'));
+        setError('Camera error: ' + (err.message || 'Unable to access camera') + '\n\nYou can use the "Upload Photo" button below instead.');
       }
     }
   };
