@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 interface USCWelcomePopupProps {
@@ -9,32 +9,47 @@ interface USCWelcomePopupProps {
 
 /**
  * Welcome popup for USC admin QR code users
- * Shows before card scanning step
+ * Auto-transitions to get started after 3 seconds
  */
 export function USCWelcomePopup({ onContinue }: USCWelcomePopupProps) {
-  const [checking, setChecking] = React.useState(false);
+  const [countdown, setCountdown] = useState(3);
   
-  const handleContinue = async () => {
-    setChecking(true);
+  useEffect(() => {
+    // Countdown timer
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     
-    // Check if open signup is enabled
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/open-signup/status`);
-      const data = await res.json();
-      
-      if (data.enabled) {
-        console.log('[USC Welcome] Open signup ENABLED - skipping card scanner');
-        // Redirect to simple signup (name/photo flow)
-        window.location.href = '/onboarding';
-        return;
+    // Auto-transition after 3 seconds
+    const timeout = setTimeout(async () => {
+      // Check if open signup is enabled
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'}/open-signup/status`);
+        const data = await res.json();
+        
+        if (data.enabled) {
+          console.log('[USC Welcome] Open signup ENABLED - skipping card scanner');
+          window.location.href = '/onboarding';
+          return;
+        }
+      } catch (err) {
+        console.error('[USC Welcome] Failed to check open signup, proceeding to card scanner');
       }
-    } catch (err) {
-      console.error('[USC Welcome] Failed to check open signup, proceeding to card scanner');
-    }
+      
+      onContinue();
+    }, 3000);
     
-    // Open signup disabled or check failed - proceed to card scanner
-    onContinue();
-  };
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [onContinue]);
   
   return (
     <motion.div
@@ -71,7 +86,7 @@ export function USCWelcomePopup({ onContinue }: USCWelcomePopupProps) {
           Welcome to BUMPIN @ USC
         </motion.h1>
 
-        {/* Body - 1-2 sentences as requested */}
+        {/* Body */}
         <motion.p
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -81,20 +96,19 @@ export function USCWelcomePopup({ onContinue }: USCWelcomePopupProps) {
           Connect with fellow Trojans on campus and around the world, make lasting connections. Go USC!
         </motion.p>
 
-        {/* CTA Button */}
-        <motion.button
+        {/* Auto-transition indicator */}
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.7 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleContinue}
-          disabled={checking}
-          className="w-full sm:w-auto px-12 py-4 rounded-xl font-bold text-xl text-[#990000] hover:text-[#770000] transition-all shadow-lg disabled:opacity-50"
-          style={{ background: '#FFCC00' }}
+          className="text-white/70 text-lg"
         >
-          {checking ? 'Checking...' : 'Continue to Verification →'}
-        </motion.button>
+          {countdown > 0 ? (
+            <span>Starting in {countdown}...</span>
+          ) : (
+            <span>Loading...</span>
+          )}
+        </motion.div>
       </motion.div>
     </motion.div>
   );
