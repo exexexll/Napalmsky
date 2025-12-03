@@ -55,12 +55,9 @@ export function PixelizedTeamPhoto() {
       photoDiv.style.animation = `fadeInBounce 0.6s ease-out ${index * 0.1}s both`;
       photoDiv.style.mixBlendMode = 'normal'; // Allows layering visibility
 
-      // Hide on mobile (< 768px) and PC/desktop (>= 1024px)
-      // Only show on tablet screens (768px - 1023px)
-      if (window.innerWidth < 768 || window.innerWidth >= 1024) {
-        photoDiv.style.display = 'none';
-        return; // Skip this photo on mobile and PC
-      }
+      // Hide photos on all screen sizes
+      photoDiv.style.display = 'none';
+      return;
 
       // TABLET ONLY: Polaroid frame (semi-transparent for layering)
       const frame = document.createElement('div');
@@ -124,14 +121,7 @@ export function PixelizedTeamPhoto() {
     };
   }, []);
 
-  return (
-    <>
-      {/* Photo Container - tablet only (md to lg) */}
-      <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden lg:hidden" />
-      
-      {/* Gradient overlay - tablet only (md to lg) */}
-      <div className="absolute inset-0 hidden md:block lg:hidden bg-gradient-to-r from-[#0a0a0c]/15 via-[#0a0a0c]/40 to-[#0a0a0c]/70 pointer-events-none" />
-    </>
-  );
+  // Photos hidden on all screens
+  return null;
 }
 
