@@ -55,13 +55,14 @@ export function PixelizedTeamPhoto() {
       photoDiv.style.animation = `fadeInBounce 0.6s ease-out ${index * 0.1}s both`;
       photoDiv.style.mixBlendMode = 'normal'; // Allows layering visibility
 
-      // MOBILE-FIRST: Hide on mobile for clean layout
-      if (window.innerWidth < 768) {
+      // Hide on mobile (< 768px) and PC/desktop (>= 1024px)
+      // Only show on tablet screens (768px - 1023px)
+      if (window.innerWidth < 768 || window.innerWidth >= 1024) {
         photoDiv.style.display = 'none';
-        return; // Skip this photo on mobile
+        return; // Skip this photo on mobile and PC
       }
 
-      // DESKTOP ONLY: Polaroid frame (semi-transparent for layering)
+      // TABLET ONLY: Polaroid frame (semi-transparent for layering)
       const frame = document.createElement('div');
       frame.className = 'w-full h-full p-2.5';
       frame.style.backgroundColor = 'rgba(255, 255, 255, 0.75)'; // Semi-transparent
@@ -76,7 +77,7 @@ export function PixelizedTeamPhoto() {
       imgEl.src = config.src;
       imgEl.alt = 'Team moments';
       imgEl.className = 'w-full h-full object-cover';
-      imgEl.style.opacity = '0.35'; // Desktop only
+      imgEl.style.opacity = '0.35'; // Tablet only
       imgEl.style.filter = 'brightness(0.75) contrast(1.15) saturate(0.8)';
       
       imgContainer.appendChild(imgEl);
@@ -100,7 +101,7 @@ export function PixelizedTeamPhoto() {
 
       containerRef.current?.appendChild(photoDiv);
       
-      console.log(`[Photos] Photo ${index + 1} added (no pixelation, barely visible)`);
+      console.log(`[Photos] Photo ${index + 1} added (tablet only, barely visible)`);
     });
 
 
@@ -125,11 +126,11 @@ export function PixelizedTeamPhoto() {
 
   return (
     <>
-      {/* Photo Container */}
-      <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden" />
+      {/* Photo Container - tablet only (md to lg) */}
+      <div ref={containerRef} className="absolute inset-0 pointer-events-none overflow-hidden lg:hidden" />
       
-      {/* Desktop only gradient (mobile has no photos, no gradient needed) */}
-      <div className="absolute inset-0 hidden md:block bg-gradient-to-r from-[#0a0a0c]/15 via-[#0a0a0c]/40 to-[#0a0a0c]/70 pointer-events-none" />
+      {/* Gradient overlay - tablet only (md to lg) */}
+      <div className="absolute inset-0 hidden md:block lg:hidden bg-gradient-to-r from-[#0a0a0c]/15 via-[#0a0a0c]/40 to-[#0a0a0c]/70 pointer-events-none" />
     </>
   );
 }
